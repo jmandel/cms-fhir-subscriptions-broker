@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 530" font-family="'Inter', 'Segoe UI', system-ui, sans-serif">
+  <style>
+    .box { stroke-width: 1.5; }
+    .label-primary { font-size: 13px; font-weight: 600; }
+    .label-secondary { font-size: 11px; }
+    .network-label { font-size: 12px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+    .connector { fill: none; stroke-width: 1.5; }
+    .annotation { font-size: 11px; font-style: italic; }
+  </style>
+
+  <defs>
+    <marker id="arr-blue" viewBox="0 0 8 6" refX="8" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arr-gray" viewBox="0 0 8 6" refX="8" refY="3" markerWidth="8" markerHeight="6" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <!-- ==================== Network X ==================== -->
+  <rect x="168" y="16" width="636" height="280" rx="10"
+        fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="7 4"/>
+  <text x="486" y="40" text-anchor="middle" class="network-label" fill="#64748b">Network X</text>
+
+  <!-- Client App (outside networks) -->
+  <rect x="16" y="120" width="120" height="64" rx="6"
+        class="box" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="76" y="149" text-anchor="middle" class="label-primary" fill="#1e40af">Client App</text>
+  <text x="76" y="166" text-anchor="middle" class="label-secondary" fill="#60a5fa">(FHIR API)</text>
+
+  <!-- Broker X -->
+  <rect x="280" y="104" width="160" height="96" rx="6"
+        class="box" fill="#f0fdf4" stroke="#22c55e"/>
+  <text x="360" y="143" text-anchor="middle" class="label-primary" fill="#166534">Broker X</text>
+  <text x="360" y="161" text-anchor="middle" class="label-secondary" fill="#16a34a">Subscriptions</text>
+  <text x="360" y="177" text-anchor="middle" class="label-secondary" fill="#16a34a">Broker</text>
+
+  <!-- Client → Broker X -->
+  <line x1="136" y1="152" x2="278" y2="152"
+        class="connector" stroke="#3b82f6"
+        marker-start="url(#arr-blue)" marker-end="url(#arr-blue)"/>
+  <rect x="176" y="133" width="66" height="18" rx="3" fill="#eff6ff"/>
+  <text x="209" y="146" text-anchor="middle" font-size="11" font-weight="500" fill="#3b82f6">FHIR API</text>
+
+  <!-- Providers: vertical bus from Broker X -->
+  <!-- Horizontal stub from Broker X right edge -->
+  <line x1="440" y1="152" x2="510" y2="152"
+        class="connector" stroke="#94a3b8"/>
+  <!-- Vertical bus -->
+  <line x1="510" y1="88" x2="510" y2="244"
+        class="connector" stroke="#94a3b8"/>
+
+  <!-- Mercy Hospital -->
+  <rect x="580" y="60" width="180" height="56" rx="6"
+        class="box" fill="#fefce8" stroke="#eab308"/>
+  <text x="670" y="86" text-anchor="middle" class="label-primary" fill="#854d0e">Mercy Hospital</text>
+  <text x="670" y="103" text-anchor="middle" class="label-secondary" fill="#a16207">EHR</text>
+  <!-- Bus → Mercy -->
+  <line x1="510" y1="88" x2="578" y2="88"
+        class="connector" stroke="#94a3b8" marker-end="url(#arr-gray)"/>
+
+  <!-- City Clinic -->
+  <rect x="580" y="136" width="180" height="56" rx="6"
+        class="box" fill="#fefce8" stroke="#eab308"/>
+  <text x="670" y="162" text-anchor="middle" class="label-primary" fill="#854d0e">City Clinic</text>
+  <text x="670" y="179" text-anchor="middle" class="label-secondary" fill="#a16207">EHR</text>
+  <!-- Bus → City Clinic -->
+  <line x1="510" y1="164" x2="578" y2="164"
+        class="connector" stroke="#94a3b8" marker-end="url(#arr-gray)"/>
+
+  <!-- Third provider (dots / ellipsis) -->
+  <rect x="580" y="216" width="180" height="52" rx="6"
+        class="box" fill="#fefce8" stroke="#eab308" stroke-dasharray="4 3"/>
+  <text x="670" y="248" text-anchor="middle" class="label-secondary" fill="#a16207">additional providers...</text>
+  <!-- Bus → dots -->
+  <line x1="510" y1="244" x2="578" y2="244"
+        class="connector" stroke="#94a3b8" stroke-dasharray="4 3"/>
+
+  <!-- "Network-internal" annotation -->
+  <text x="510" y="280" text-anchor="middle" class="annotation" fill="#94a3b8">network-internal integrations</text>
+
+  <!-- ==================== Peering ==================== -->
+  <line x1="360" y1="200" x2="360" y2="370"
+        class="connector" stroke="#64748b" stroke-dasharray="6 3"/>
+  <rect x="322" y="318" width="76" height="22" rx="3" fill="white" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="360" y="334" text-anchor="middle" font-size="11" font-weight="500" fill="#64748b">Peering</text>
+
+  <!-- ==================== Network Y ==================== -->
+  <rect x="168" y="356" width="636" height="156" rx="10"
+        fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="7 4"/>
+  <text x="486" y="380" text-anchor="middle" class="network-label" fill="#64748b">Network Y</text>
+
+  <!-- Broker Y -->
+  <rect x="280" y="400" width="160" height="88" rx="6"
+        class="box" fill="#f0fdf4" stroke="#22c55e"/>
+  <text x="360" y="437" text-anchor="middle" class="label-primary" fill="#166534">Broker Y</text>
+  <text x="360" y="455" text-anchor="middle" class="label-secondary" fill="#16a34a">Subscriptions</text>
+  <text x="360" y="471" text-anchor="middle" class="label-secondary" fill="#16a34a">Broker</text>
+
+  <!-- Valley Medical -->
+  <rect x="580" y="416" width="180" height="56" rx="6"
+        class="box" fill="#fefce8" stroke="#eab308"/>
+  <text x="670" y="442" text-anchor="middle" class="label-primary" fill="#854d0e">Valley Medical</text>
+  <text x="670" y="459" text-anchor="middle" class="label-secondary" fill="#a16207">EHR</text>
+  <!-- Broker Y → Valley Medical -->
+  <line x1="440" y1="444" x2="578" y2="444"
+        class="connector" stroke="#94a3b8" marker-end="url(#arr-gray)"/>
+</svg>
