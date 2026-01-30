@@ -31,66 +31,94 @@ A **Subscriptions Broker** operated by a CMS-Aligned Network solves this by givi
 <summary>Diagram source (Pikchr)</summary>
 
 ```pikchr
-scale = 0.85
-fontscale = 1.05
-down
+scale = 0.8
+fontscale = 1.1
+$m = 0.3in
+$label_gap = 0.25in
 
-# ── Client (top center) ─────────────────────────────────────
-C: box "Client" bold fit rad 5px fill 0xD6EAF8
+right
 
-# ── Arrow to Broker ──────────────────────────────────────────
-arrow down 0.5in "FHIR Subscriptions API" ljust
+# ── Client App (outside networks) ─────────────────────────────
+CA: box "Client App" bold "(FHIR API)" \
+    fit rad 5px fill 0xeff6ff color 0x1e40af
 
-# ── Broker (wide, center) ───────────────────────────────────
-B: box "Subscriptions Broker" bold "(CMS-Aligned Network)" \
-   wid 4.0in ht 0.6in rad 5px fill 0xFAD7A0
+# ── Broker X ──────────────────────────────────────────────────
+BX: box "Broker X" bold "Subscriptions" "Broker" \
+    fit rad 5px fill 0xf0fdf4 color 0x166534 \
+    with .w at 1.8in right of CA.e
 
-# ── Peer Network (right of Broker) ──────────────────────────
-PN: box "Peer CMS-Aligned" bold "Network / QHIN" \
-    fit rad 5px fill 0xE8DAEF \
-    with .w at 0.7in right of B.e
+arrow <-> from CA.e to BX.w color 0x3b82f6
+text "FHIR API" bold small color 0x3b82f6 \
+  with .s at 0.06in above last arrow.c
 
-arrow dashed <-> from B.e to PN.w
+# ── Providers (bracketing Broker X vertically) ────────────────
+P1: box "Mercy Hospital" bold "EHR" \
+    fit rad 5px fill 0xfefce8 color 0x854d0e \
+    with .w at 1.5in right of BX.e + (0, 0.7in)
 
-# ── Record Locator Service (left of Broker) ─────────────────
-RLS: box "Record Locator" bold "Service" \
-     fit rad 5px fill 0xFDEDEC \
-     with .e at 0.7in left of B.w
+P2: box "City Clinic" bold "EHR" same \
+    with .nw at 0.15in below P1.sw
 
-arrow dashed <-> from RLS.e to B.w
+P3: box "additional providers..." small \
+    fit rad 5px fill 0xfefce8 color 0xa16207 dashed \
+    with .nw at 0.15in below P2.sw
 
-# ── Data Sources: fan out from Broker ────────────────────────
-DS1: box "EHR / Data Source" bold "(FHIR-native)" \
-     fit rad 5px fill 0xD5F5E3 \
-     with .n at 1.4in below B.s + (-1.6in, 0)
+# Vertical bus
+$busx = BX.e.x + 0.5in
+line from ($busx, P1.c.y) to ($busx, P3.c.y) color 0x94a3b8
+line from BX.e to ($busx, BX.e.y) color 0x94a3b8
+arrow from ($busx, P1.c.y) to P1.w color 0x94a3b8
+arrow from ($busx, P2.c.y) to P2.w color 0x94a3b8
+line dashed from ($busx, P3.c.y) to P3.w color 0x94a3b8
 
-DS2: box "EHR / Data Source" bold "(ADT feed)" \
-     fit rad 5px fill 0xD5F5E3 \
-     with .n at 1.4in below B.s
+text "network-internal" italic small color 0x94a3b8 \
+  with .n at 0.08in below P3.s
+text "integrations" italic small color 0x94a3b8 \
+  with .n at 0.02in below last text.s
 
-DS3: box "EHR / Data Source" bold "(Legacy / Poll)" \
-     fit rad 5px fill 0xD5F5E3 \
-     with .n at 1.4in below B.s + (1.6in, 0)
+# ── Peering ───────────────────────────────────────────────────
+line dashed from BX.s down 0.6in color 0x64748b
+PEER: box "Peering" small fit rad 3px fill white color 0x64748b \
+  with .n at last line.end
 
-# Fan-out arrows with Manhattan routing
-arrow dashed from B.s down 0.15in then left until even with DS1 then to DS1.n
-arrow dashed from B.s down 0.15in then to DS2.n
-arrow dashed from B.s down 0.15in then right until even with DS3 then to DS3.n
+# ── Broker Y + Valley Medical ─────────────────────────────────
+BY: box "Broker Y" bold "Subscriptions" "Broker" \
+    fit rad 5px fill 0xf0fdf4 color 0x166534 \
+    with .n at 0.6in below PEER.s
 
-# Labels beside each vertical leg
-text "FHIR" small with .e at DS1.n + (-0.08in, 0.15in)
-text "Subscriptions" small with .e at DS1.n + (-0.08in, 0.32in)
+line dashed from PEER.s to BY.n color 0x64748b
 
-text "HL7v2 ADT" small with .w at DS2.n + (0.08in, 0.2in)
+VM: box "Valley Medical" bold "EHR" \
+    fit rad 5px fill 0xfefce8 color 0x854d0e \
+    with .w at 1.5in right of BY.e
+arrow from BY.e to VM.w color 0x94a3b8
 
-text "Polling /" small with .w at DS3.n + (0.08in, 0.15in)
-text "Proprietary" small with .w at DS3.n + (0.08in, 0.32in)
+# ── Background regions ────────────────────────────────────────
+$nx_top    = P1.n.y + $m + $label_gap
+$nx_bot    = min(BX.s.y, P3.s.y) - $m
+$nx_left   = BX.w.x - $m
+$nx_right  = P1.e.x + $m
 
-# ── Abstraction boundary (between arrows and data sources) ──
-AB: line dashed from RLS.sw + (0, -0.45in) \
-  right until even with PN.se + (0, -0.45in) color gray
-text "network-internal plumbing (opaque to Client)" italic color gray \
-  with .n at 0.06in below AB.c
+NX: box \
+  wid ($nx_right - $nx_left) \
+  ht  ($nx_top - $nx_bot) \
+  rad 10px dashed color 0xcbd5e1 fill 0xf8fafc \
+  with .nw at ($nx_left, $nx_top) \
+  behind CA
+text "NETWORK X" bold small color 0x64748b \
+  with .s at NX.n + (0, -0.08in)
+
+$ny_top    = max(BY.n.y, VM.n.y) + $m + $label_gap
+$ny_bot    = min(BY.s.y, VM.s.y) - $m
+
+NY: box \
+  wid ($nx_right - $nx_left) \
+  ht  ($ny_top - $ny_bot) \
+  rad 10px dashed color 0xcbd5e1 fill 0xf8fafc \
+  with .nw at ($nx_left, $ny_top) \
+  behind CA
+text "NETWORK Y" bold small color 0x64748b \
+  with .s at NY.n + (0, -0.08in)
 ```
 
 </details>
@@ -103,7 +131,7 @@ The Client sees a standard FHIR Subscriptions API. Behind it, the Broker may:
 - Configure HL7v2 ADT routing from Data Sources that use ADT feeds
 - Poll Data Sources that don't support push
 - Query a Record Locator Service (RLS) to discover relevant Data Sources
-- Register for events from peer CMS-Aligned Networks or TEFCA QHINs
+- Register for events from peer CMS-Aligned Networks or TEFCA QHINs (see [FAQ](faq.md#can-a-client-receive-notifications-from-providers-in-a-different-network))
 - Convert events from HL7v2, CCDA, or proprietary formats into FHIR notifications
 
 None of this is visible to the Client. The Client creates a FHIR Subscription, receives FHIR notification bundles, and retrieves FHIR resources.
@@ -175,7 +203,7 @@ This **will not scale** to scenarios that require explicit, granular consent:
 
 These scenarios require a standardized mechanism for conveying consent context alongside identity in token requests. The [Argonaut Project](https://confluence.hl7.org/spaces/AP/pages/86969961/Argonaut+Project+Home) is considering a 2026 initiative on **"SMART Permission Tickets"** that could provide a technical basis for this — encoding identity, consent, and purpose of use into a verifiable token that can propagate from Broker to Data Source. The CMS Patient Preferences and Consent Workgroup is also exploring how consent information should be conveyed in network transactions.
 
-The specific format for authorization requests is **out of scope for this document** but must be pinned down for production use.
+The specific format for authorization requests is **out of scope for this document** but must be pinned down for production use. See [FAQ](faq.md#why-is-implicit-consent-acceptable-for-a-pilot-but-not-at-scale) for further discussion.
 
 ### 4.4 Token Response
 
@@ -343,7 +371,7 @@ Content-Type: application/fhir+json
 
 - `patient=Patient/broker-123` uses the **broker-assigned `Patient.id`** from the token response — not a cross-organization identifier
 - The `trigger=feed-event` filter uses the US Core Patient Data Feed topic's trigger definition
-- `id-only` payload means notifications contain references, not inline resources
+- `id-only` payload means notifications contain references, not inline resources (see [FAQ](faq.md#dont-notifications-reveal-phi-even-with-id-only-payloads) on PHI implications)
 
 ### 5.2 Broker Processes the Subscription (Internal)
 
@@ -483,7 +511,7 @@ arrow from R1S to R1E dashed color 0x2E86C1 "200 OK" below
 
 - `focus.reference` is an **absolute URL** — the Client uses this to determine where to fetch the resource
 - `subscription.reference` points to the Broker (where the Client created it)
-- `eventNumber` allows the Client to detect missed notifications
+- `eventNumber` allows the Client to detect missed notifications (see [FAQ](faq.md#what-happens-if-the-client-misses-a-notification))
 
 ### 5.4 Client Retrieves Data
 

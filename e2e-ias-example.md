@@ -39,7 +39,7 @@ Jane verifies her identity through a trusted identity service (e.g., CLEAR or ID
 ### Step 3 — Patient provides consent
 > **Prerequisite**
 
-Jane authorizes the IAS app to receive notifications about her care. For an initial pilot, this may be implicit (she installed the app and verified her identity). At scale, explicit consent capture is needed — especially for designated representatives, caregivers, or sensitive data categories. See the main document's discussion of SMART Permission Tickets.
+Jane authorizes the IAS app to receive notifications about her care. For an initial pilot, this may be implicit (she installed the app and verified her identity). At scale, explicit consent capture is needed — especially for designated representatives, caregivers, or sensitive data categories. See [FAQ](faq.md#why-is-implicit-consent-acceptable-for-a-pilot-but-not-at-scale) and the main document's discussion of SMART Permission Tickets.
 
 ### Step 4 — IAS app is registered with the Broker
 > **Prerequisite**
@@ -175,7 +175,7 @@ For each discovered Data Source, the Broker sets up event delivery using whateve
 | City Clinic | FHIR Subscription | Clinic's EHR supports FHIR natively; Broker creates a child subscription |
 | Blue Cross (Payer) | Polling | Broker periodically checks for new claims |
 
-The Broker may also register with peer CMS-Aligned Networks to receive cross-network events for Jane.
+The Broker may also register with peer CMS-Aligned Networks to receive cross-network events for Jane (see [FAQ](faq.md#can-a-client-receive-notifications-from-providers-in-a-different-network)).
 
 ---
 
@@ -203,7 +203,7 @@ PV1||E|ED^ROOM3||||...
 The network routes the ADT message to the Broker. The Broker:
 
 1. Parses the event (from HL7v2, FHIR, or whatever format)
-2. Resolves the patient identity (Mercy's MRN-5678 → Broker's Patient/broker-123)
+2. Resolves the patient identity (Mercy's MRN-5678 → Broker's Patient/broker-123) — see [FAQ](faq.md#what-about-patient-matching-ehrs-manage-their-own-matching-thresholds-today) on matching approaches
 3. Matches against active subscriptions
 4. Finds that Subscription/sub-abc123 is watching for Encounter events on Patient/broker-123
 
