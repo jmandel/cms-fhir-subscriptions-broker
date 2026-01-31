@@ -2,12 +2,7 @@
 import { resolve } from "path";
 import { makeSubscription, makeNotificationBundle } from "../shared/types";
 import { createMockToken, extractPermissionTicket, matchDemographics, decodeMockToken } from "../shared/auth";
-
-// Callback for delivering notifications to the client handler directly
-let clientNotify: ((req: Request) => Promise<Response>) | null = null;
-export function setClientNotify(fn: (req: Request) => Promise<Response>) {
-  clientNotify = fn;
-}
+import { serviceUrl, internalUrl, injectHtmlConfig } from "../config";
 
 // Dynamic patient registry: brokerId → { name, birthDate, sourceIds: Map<sourceSystem, sourceId> }
 const patients: Map<string, { brokerId: string; name: string; birthDate: string }> = new Map();
@@ -56,7 +51,10 @@ export async function handle(req: Request): Promise<Response> {
   const method = req.method;
 
   if (url.pathname === "/" && method === "GET") {
-    return new Response(Bun.file(uiPath), { headers: { "Content-Type": "text/html; charset=utf-8" } });
+    const raw = await Bun.file(uiPath).text();
+    return new Response(injectHtmlConfig(raw, "broker"), {
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 
   // Admin state — system-wide
@@ -115,7 +113,6 @@ export async function handle(req: Request): Promise<Response> {
   }
 
   // Token endpoint — SMART Backend Services with Permission Ticket
-  // Accepts: grant_type=client_credentials & client_assertion_type=...jwt-bearer & client_assertion=<JWT>
   if (url.pathname === "/auth/token" && method === "POST") {
     const contentType = req.headers.get("content-type") || "";
     let clientAssertion: string | null = null;
@@ -125,7 +122,6 @@ export async function handle(req: Request): Promise<Response> {
       const params = new URLSearchParams(text);
       clientAssertion = params.get("client_assertion");
     } else {
-      // Also accept JSON for convenience
       const body = await req.json().catch(() => ({})) as any;
       clientAssertion = body.client_assertion;
     }
@@ -234,16 +230,12 @@ export async function handle(req: Request): Promise<Response> {
       pushEvent({ type: "notification-sending", detail: `Delivering notification for Subscription/${id}`, resource: bundle });
 
       try {
-        if (clientNotify) {
-          const resp = await clientNotify(new Request("http://ias-client.localhost:3000/notifications", {
-            method: "POST",
-            headers: { "Content-Type": "application/fhir+json" },
-            body: JSON.stringify(bundle),
-          }));
-          pushEvent({ type: "notification-delivered", detail: `Notification delivered — status ${resp.status}` });
-        } else {
-          pushEvent({ type: "notification-error", detail: "No client handler registered" });
-        }
+        const resp = await fetch(`${internalUrl("client")}/notifications`, {
+          method: "POST",
+          headers: { "Content-Type": "application/fhir+json" },
+          body: JSON.stringify(bundle),
+        });
+        pushEvent({ type: "notification-delivered", detail: `Notification delivered — status ${resp.status}` });
       } catch (e: any) {
         pushEvent({ type: "notification-error", detail: `Delivery failed: ${e.message}` });
       }

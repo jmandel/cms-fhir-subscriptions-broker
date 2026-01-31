@@ -1,6 +1,7 @@
 // IAS Client handler — no server, just exports handle()
 import { resolve } from "path";
 import { createPermissionTicket, createClientAssertion } from "../shared/auth";
+import { serviceUrl, internalUrl, injectHtmlConfig } from "../config";
 
 const CLIENT_ID = "https://ias-client.example.com";
 
@@ -58,31 +59,6 @@ function pushEvent(session: SessionState | null, data: any) {
   }
 }
 
-// Direct access to broker and data-source handlers (in-process)
-let brokerHandle: ((req: Request) => Promise<Response>) | null = null;
-export function setBrokerHandle(fn: (req: Request) => Promise<Response>) {
-  brokerHandle = fn;
-}
-
-let dataSourceHandle: ((req: Request) => Promise<Response>) | null = null;
-export function setDataSourceHandle(fn: (req: Request) => Promise<Response>) {
-  dataSourceHandle = fn;
-}
-
-async function callBroker(path: string, init?: RequestInit): Promise<Response> {
-  if (brokerHandle) {
-    return brokerHandle(new Request(`http://broker.localhost:3000${path}`, init));
-  }
-  return fetch(`http://localhost:3000${path}`, { ...init, headers: { ...init?.headers as any, Host: "broker.localhost:3000" } });
-}
-
-async function callDataSource(path: string, init?: RequestInit): Promise<Response> {
-  if (dataSourceHandle) {
-    return dataSourceHandle(new Request(`http://mercy-ehr.localhost:3000${path}`, init));
-  }
-  return fetch(`http://localhost:3000${path}`, { ...init, headers: { ...init?.headers as any, Host: "mercy-ehr.localhost:3000" } });
-}
-
 const uiPath = resolve(import.meta.dir, "ui.html");
 
 export async function handle(req: Request): Promise<Response> {
@@ -91,7 +67,10 @@ export async function handle(req: Request): Promise<Response> {
 
   // Serve UI
   if (url.pathname === "/" && method === "GET") {
-    return new Response(Bun.file(uiPath), { headers: { "Content-Type": "text/html; charset=utf-8" } });
+    const raw = await Bun.file(uiPath).text();
+    return new Response(injectHtmlConfig(raw, "client"), {
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 
   // State endpoint — returns state for a specific patient
@@ -113,11 +92,6 @@ export async function handle(req: Request): Promise<Response> {
       start(controller) {
         sseClients.add(controller);
         // Send current state for all sessions
-        const allEvents: any[] = [];
-        for (const s of sessions.values()) {
-          allEvents.push(...s.events.slice(-20));
-        }
-        allEvents.sort((a, b) => a.timestamp - b.timestamp);
         const stateMsg = `data: ${JSON.stringify({ type: "state-sync", sessions: [...sessions.values()].map(s => ({ patientKey: s.patientKey, patient: s.patient, identity: s.identity, token: s.token, subscriptions: s.subscriptions, encounters: s.encounters })) })}\n\n`;
         controller.enqueue(new TextEncoder().encode(": connected\n\n" + stateMsg));
       },
@@ -271,13 +245,13 @@ export async function handle(req: Request): Promise<Response> {
     for (const evt of events) {
       const focusRef = evt.focus?.reference;
       if (!focusRef) continue;
-      const fetchUrl = `http://mercy-ehr.localhost:3000/fhir/${focusRef}`;
+      const fetchUrl = `${internalUrl("dataSource")}/fhir/${focusRef}`;
       pushEvent(session, { type: "fetching-encounter", detail: `Fetching ${focusRef} from Data Source...`, requestUrl: fetchUrl });
 
       try {
-        const tokenResp = await callDataSource("/auth/token", { method: "POST" });
+        const tokenResp = await fetch(`${internalUrl("dataSource")}/auth/token`, { method: "POST" });
         const tokenData = await tokenResp.json() as any;
-        const encResp = await callDataSource(`/fhir/${focusRef}`, {
+        const encResp = await fetch(`${internalUrl("dataSource")}/fhir/${focusRef}`, {
           headers: { Authorization: `Bearer ${tokenData.access_token}` },
         });
         const encounter = await encResp.json() as any;
@@ -305,12 +279,12 @@ async function doAuthAndSubscribe(session: SessionState) {
     }
 
     // Create client assertion with embedded permission ticket
-    const assertion = createClientAssertion(CLIENT_ID, "http://broker.localhost:3000", session.permissionTicket);
+    const assertion = createClientAssertion(CLIENT_ID, serviceUrl("broker"), session.permissionTicket);
     session.clientAssertion = assertion;
     pushEvent(session, { type: "client-assertion-created", detail: "Client assertion created with embedded permission ticket", clientAssertion: assertion });
 
     // Authenticate with broker using SMART Backend Services flow
-    const tokenResp = await callBroker("/auth/token", {
+    const tokenResp = await fetch(`${internalUrl("broker")}/auth/token`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -331,7 +305,7 @@ async function doAuthAndSubscribe(session: SessionState) {
     pushEvent(session, { type: "authenticated", detail: `Authenticated to Broker — patient context: ${tokenData.patient}`, response: tokenData });
 
     // Subscribe using the brokerId learned from token response
-    const subResp = await callBroker("/fhir/Subscription", {
+    const subResp = await fetch(`${internalUrl("broker")}/fhir/Subscription`, {
       method: "POST",
       headers: { "Content-Type": "application/fhir+json", Authorization: `Bearer ${tokenData.access_token}` },
       body: JSON.stringify({

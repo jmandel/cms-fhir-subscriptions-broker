@@ -190,7 +190,7 @@ function statusTag(status) {
 }
 
 function loadState() {
-  fetch("/admin/state").then(function(r){ return r.json(); }).then(function(s) {
+  fetch(__BASE__ + "/admin/state").then(function(r){ return r.json(); }).then(function(s) {
     document.getElementById("stat-patients").textContent = s.patients ? s.patients.length : 0;
     document.getElementById("stat-encounters").textContent = s.encounters ? s.encounters.length : 0;
 
@@ -253,7 +253,7 @@ async function createEncounter(mode) {
   }
 
   try {
-    await fetch("/trigger-event", {
+    await fetch(__BASE__ + "/trigger-event", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ patient: patient, encounterOptions: encounterOptions }),
@@ -264,7 +264,7 @@ async function createEncounter(mode) {
   btn.disabled = false;
 }
 
-var es = new EventSource("/events");
+var es = new EventSource(__BASE__ + "/events");
 es.onmessage = function(e) {
   try {
     var data = JSON.parse(e.data);

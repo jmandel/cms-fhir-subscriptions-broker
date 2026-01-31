@@ -3,12 +3,7 @@ import { resolve } from "path";
 import { makeEncounter, makePatient, ENCOUNTER_CLASSES, ENCOUNTER_TYPES, REASON_CODES } from "../shared/types";
 import type { EncounterOptions } from "../shared/types";
 import { createMockToken } from "../shared/auth";
-
-// Callback for pushing events to broker directly
-let brokerHandle: ((req: Request) => Promise<Response>) | null = null;
-export function setBrokerHandle(fn: (req: Request) => Promise<Response>) {
-  brokerHandle = fn;
-}
+import { serviceUrl, internalUrl, injectHtmlConfig } from "../config";
 
 // Dynamic patient registry (MPI): sourceId → { name, birthDate, resource }
 const patients: Map<string, { sourceId: string; name: string; birthDate: string; resource: any }> = new Map();
@@ -47,7 +42,10 @@ export async function handle(req: Request): Promise<Response> {
   const method = req.method;
 
   if (url.pathname === "/" && method === "GET") {
-    return new Response(Bun.file(uiPath), { headers: { "Content-Type": "text/html; charset=utf-8" } });
+    const raw = await Bun.file(uiPath).text();
+    return new Response(injectHtmlConfig(raw, "dataSource"), {
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 
   // Admin state — system-wide MPI view
@@ -171,21 +169,19 @@ export async function handle(req: Request): Promise<Response> {
     const statusLabel = opts.status === "planned" ? "planned" : "in-progress";
     pushEvent({ type: "encounter-created", detail: `Encounter/${id} created — ${typeDisplay} (${classDisplay}, ${statusLabel}) for ${patientInfo.name}`, resource: encounter, sourceId });
 
-    // Push to Broker directly (in-process)
+    // Push to Broker via HTTP
     try {
-      if (brokerHandle) {
-        const resp = await brokerHandle(new Request("http://broker.localhost:3000/internal/event", {
-          method: "POST",
-          headers: { "Content-Type": "application/fhir+json" },
-          body: JSON.stringify({
-            eventType: "encounter-start",
-            patient: sourceId,
-            encounter: `Encounter/${id}`,
-            dataSourceBase: "http://mercy-ehr.localhost:3000",
-          }),
-        }));
-        pushEvent({ type: "event-sent", detail: `Event sent to Broker — status ${resp.status}` });
-      }
+      const resp = await fetch(`${internalUrl("broker")}/internal/event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/fhir+json" },
+        body: JSON.stringify({
+          eventType: "encounter-start",
+          patient: sourceId,
+          encounter: `Encounter/${id}`,
+          dataSourceBase: internalUrl("dataSource"),
+        }),
+      });
+      pushEvent({ type: "event-sent", detail: `Event sent to Broker — status ${resp.status}` });
     } catch (e: any) {
       pushEvent({ type: "event-error", detail: `Failed to reach Broker: ${e.message}` });
     }

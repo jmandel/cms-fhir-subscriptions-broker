@@ -349,7 +349,7 @@
       Subscriptions Broker
       <span>
         <span class="badge badge-active">Running</span>
-        <button class="btn-outline" onclick="window.open('http://broker.localhost:3000','_blank')" style="margin-left:6px;">Open Admin</button>
+        <button class="btn-outline" onclick="window.open(BROKER,'_blank')" style="margin-left:6px;">Open Admin</button>
       </span>
     </div>
     <div class="panel-body">
@@ -376,7 +376,7 @@
       Mercy General EHR
       <span>
         <span class="badge badge-active">Online</span>
-        <button class="btn-outline" onclick="window.open('http://mercy-ehr.localhost:3000','_blank')" style="margin-left:6px;">Open EHR</button>
+        <button class="btn-outline" onclick="window.open(EHR,'_blank')" style="margin-left:6px;">Open EHR</button>
       </span>
     </div>
     <div class="panel-body">
@@ -436,9 +436,10 @@
 </div>
 
 <script>
-const BROKER = "http://broker.localhost:3000";
-const CLIENT = "http://ias-client.localhost:3000";
-const EHR = "http://mercy-ehr.localhost:3000";
+// Service URLs injected by server via injectHtmlConfig()
+const BROKER = __BROKER__;
+const CLIENT = __CLIENT__;
+const EHR = __EHR__;
 
 // --- Generate random patient identity for this tab ---
 const FIRST_NAMES = ["Alice","Maria","James","Carlos","Priya","Kenji","Fatima","Elena","David","Sarah","Omar","Yuki","Rosa","Thomas","Amara","Liam","Sofia","Andre","Mei","Noah","Zara","Ivan","Nia","Leo","Grace","Raj","Hana","Oscar","Chloe","Felix"];
@@ -794,7 +795,7 @@ async function doQuickAuth() {
 function doFullAuth() {
   // Open client UI with patient info in query params
   var params = "?name=" + encodeURIComponent(MY_PATIENT.name) + "&birthDate=" + MY_PATIENT.birthDate;
-  window.open("http://ias-client.localhost:3000" + params, "_blank");
+  window.open(CLIENT + params, "_blank");
   document.getElementById("btn-auth-full").textContent = "Onboarding...";
   document.getElementById("btn-auth-full").disabled = true;
   document.getElementById("btn-auth-quick").disabled = true;

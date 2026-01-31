@@ -123,7 +123,7 @@ function formatJwt(jwt) {
 }
 
 function loadState() {
-  fetch("/admin/state").then(function(r){ return r.json(); }).then(function(s) {
+  fetch(__BASE__ + "/admin/state").then(function(r){ return r.json(); }).then(function(s) {
     document.getElementById("stat-patients").textContent = s.patients ? s.patients.length : 0;
     document.getElementById("stat-subs").textContent = s.subscriptions ? s.subscriptions.length : 0;
     document.getElementById("stat-events").textContent = s.eventCount || 0;
@@ -154,7 +154,7 @@ function loadState() {
 }
 loadState();
 
-var es = new EventSource("/events");
+var es = new EventSource(__BASE__ + "/events");
 var eventCount = 0;
 es.onmessage = function(e) {
   try {

@@ -278,7 +278,7 @@ function showCard(id) {
 }
 
 function postStep(step) {
-  return fetch("/id-proofing/step", {
+  return fetch(__BASE__ + "/id-proofing/step", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ step: step, patient: PATIENT }),
@@ -286,24 +286,21 @@ function postStep(step) {
 }
 
 async function ensureRegistered() {
-  var BROKER = "http://broker.localhost:3000";
-  var EHR = "http://mercy-ehr.localhost:3000";
-
-  var brokerResp = await fetch(BROKER + "/register-patient", {
+  var brokerResp = await fetch(__BROKER__ + "/register-patient", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ sourceId: "pending", name: PATIENT.name, birthDate: PATIENT.birthDate }),
   });
   await brokerResp.json();
 
-  var ehrResp = await fetch(EHR + "/register-patient", {
+  var ehrResp = await fetch(__EHR__ + "/register-patient", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ name: PATIENT.name, birthDate: PATIENT.birthDate }),
   });
   var ehrData = await ehrResp.json();
 
-  await fetch(BROKER + "/register-patient", {
+  await fetch(__BROKER__ + "/register-patient", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ sourceId: ehrData.sourceId, name: PATIENT.name, birthDate: PATIENT.birthDate }),
@@ -371,7 +368,7 @@ async function beginVerification() {
   // Wait for registration to finish before triggering auth
   await registrationDone;
 
-  fetch("/id-proofing/complete", {
+  fetch(__BASE__ + "/id-proofing/complete", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ patient: PATIENT }),
@@ -382,7 +379,7 @@ async function beginVerification() {
 
 function pollUntilReady() {
   var poll = setInterval(function() {
-    fetch("/state?name=" + encodeURIComponent(PATIENT.name) + "&birthDate=" + PATIENT.birthDate)
+    fetch(__BASE__ + "/state?name=" + encodeURIComponent(PATIENT.name) + "&birthDate=" + PATIENT.birthDate)
       .then(function(r) { return r.json(); })
       .then(function(s) {
         if (s.token && (!s.subscriptions || !s.subscriptions.length)) {
@@ -432,7 +429,7 @@ function showWelcome(s) {
 }
 
 function connectSSE() {
-  var es = new EventSource("/events");
+  var es = new EventSource(__BASE__ + "/events");
   es.onmessage = function(e) {
     try {
       var data = JSON.parse(e.data);
