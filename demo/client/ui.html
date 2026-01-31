@@ -384,10 +384,23 @@ async function beginVerification() {
 }
 
 function pollUntilReady() {
+  var pollCount = 0;
+  var maxPolls = 75; // 30 seconds total (400ms * 75)
   var poll = setInterval(function() {
+    pollCount++;
     fetch(__BASE__ + "/state?name=" + encodeURIComponent(PATIENT.name) + "&birthDate=" + PATIENT.birthDate)
       .then(function(r) { return r.json(); })
       .then(function(s) {
+        // Check for errors in the session events
+        var hasError = s.events && s.events.some(function(e) { return e.type === "error"; });
+        if (hasError) {
+          clearInterval(poll);
+          var lastError = s.events.filter(function(e) { return e.type === "error"; }).pop();
+          document.getElementById("auto-status").innerHTML =
+            '<span style="color:#e74c3c;">✗ ' + (lastError ? lastError.detail : 'Authentication failed') + '</span>';
+          return;
+        }
+
         if (s.token && (!s.subscriptions || !s.subscriptions.length)) {
           document.getElementById("auto-status").innerHTML =
             '<span class="spinner"></span> Subscribing to encounter notifications...';
@@ -396,6 +409,17 @@ function pollUntilReady() {
           clearInterval(poll);
           showWelcome(s);
         }
+
+        // Timeout after maxPolls
+        if (pollCount >= maxPolls && !s.subscriptions?.length) {
+          clearInterval(poll);
+          document.getElementById("auto-status").innerHTML =
+            '<span style="color:#e74c3c;">✗ Timed out waiting for authentication</span>';
+        }
+      })
+      .catch(function(err) {
+        // Network error - keep polling
+        console.error("Poll error:", err);
       });
   }, 400);
 }

@@ -301,6 +301,13 @@ async function doAuthAndSubscribe(session: SessionState, f: typeof globalThis.fe
         client_assertion: assertion,
       }).toString(),
     });
+
+    if (!tokenResp.ok) {
+      const errorText = await tokenResp.text();
+      pushEvent(session, { type: "error", detail: `Auth failed: HTTP ${tokenResp.status} - ${errorText.slice(0, 100)}` });
+      return;
+    }
+
     const tokenData = await tokenResp.json() as any;
 
     if (tokenData.error) {

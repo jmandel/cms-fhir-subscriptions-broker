@@ -12,10 +12,12 @@
 //   PORT           — server listen port (default: 3000)
 
 // In a Service Worker context, process.env won't exist.
-// The static build injects __STATIC_MODE__ = true at bundle time.
+// The static build injects __STATIC_MODE__ = true and __BASE_PATH__ at bundle time.
 declare var __STATIC_MODE__: boolean | undefined;
+declare var __BASE_PATH__: string | undefined;
 
 const isStaticBuild = typeof __STATIC_MODE__ !== "undefined" && __STATIC_MODE__;
+const staticBasePath = typeof __BASE_PATH__ !== "undefined" ? __BASE_PATH__ : "";
 
 const mode: "subdomain" | "path" | "static" = isStaticBuild
   ? "static"
@@ -59,9 +61,9 @@ export function internalUrl(service: ServiceName): string {
     return `http://${s.subdomain}.localhost:${config.port}`;
   }
   if (config.mode === "static") {
-    // In static mode, inter-service calls go through the SW's routedFetch
-    // which matches on path prefix against the SW's own origin
-    return `${s.pathPrefix}`;
+    // In static mode, inter-service calls go through the routedFetch
+    // which matches on path prefix including the base path
+    return `${staticBasePath}${s.pathPrefix}`;
   }
   return `http://localhost:${config.port}${s.pathPrefix}`;
 }
