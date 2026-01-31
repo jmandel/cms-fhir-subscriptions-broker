@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subscriptions Broker &mdash; Admin</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #1a1000; color: #e0e0e0; min-height: 100vh;
+  }
+  header {
+    background: #4a2f10; padding: 16px 24px; border-bottom: 2px solid #e67e22;
+    display: flex; align-items: center; gap: 16px;
+  }
+  header h1 { font-size: 1.3rem; color: #f0b27a; }
+  header .subtitle { font-size: 0.85rem; color: #e67e22; }
+  .container { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(230,126,34,0.3);
+    border-radius: 8px; padding: 16px; margin-bottom: 16px;
+  }
+  .card h2 { font-size: 0.85rem; margin-bottom: 12px; color: #f0b27a; text-transform: uppercase; letter-spacing: 0.5px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { text-align: left; color: #8899aa; font-size: 0.72rem; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); font-family: monospace; font-size: 0.78rem; }
+  .tag { padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+  .tag-active { background: rgba(39,174,96,0.2); color: #2ecc71; }
+  .tag-match { background: rgba(52,152,219,0.2); color: #5dade2; }
+  .log-entry {
+    padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 0.82rem; animation: fadeIn 0.3s;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .log-time { color: #666; font-size: 0.72rem; float: right; }
+  .log-type { font-weight: 600; color: #f0b27a; font-size: 0.75rem; text-transform: uppercase; }
+  .log-type.match-type { color: #5dade2; }
+  .log-type.ticket-type { color: #9b59b6; }
+  .log-detail { color: #bbb; }
+  #log-container { max-height: 500px; overflow-y: auto; }
+  .stat { font-size: 2rem; font-weight: 700; color: #f0b27a; }
+  .stat-label { font-size: 0.8rem; color: #889; }
+  details summary { cursor: pointer; font-size: 0.8rem; color: #e67e22; }
+  details pre {
+    background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;
+    font-size: 0.72rem; overflow-x: auto; margin-top: 4px; color: #ddb;
+    max-height: 200px; overflow-y: auto;
+  }
+  .jwt-viewer {
+    background: rgba(155,89,182,0.08); border: 1px solid rgba(155,89,182,0.3);
+    border-radius: 6px; padding: 8px; margin-top: 4px; font-size: 0.78rem;
+  }
+  .jwt-section { margin-bottom: 4px; }
+  .jwt-label { color: #9b59b6; font-weight: 600; font-size: 0.72rem; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Subscriptions Broker</h1>
+  <span class="subtitle">Admin Dashboard — System-Wide View</span>
+</header>
+<div class="container">
+  <div class="grid2">
+    <div class="card">
+      <h2>Stats</h2>
+      <div style="display:flex; gap:24px;">
+        <div><div class="stat" id="stat-patients">0</div><div class="stat-label">Patients</div></div>
+        <div><div class="stat" id="stat-subs">0</div><div class="stat-label">Subscriptions</div></div>
+        <div><div class="stat" id="stat-events">0</div><div class="stat-label">Events</div></div>
+        <div><div class="stat" id="stat-mappings">0</div><div class="stat-label">Source Mappings</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Client Directory</h2>
+      <table>
+        <tr><th>Client ID</th><th>Key</th><th>Status</th></tr>
+        <tbody>
+          <tr>
+            <td style="font-size:0.75rem;">https://ias-client.example.com</td>
+            <td><span class="tag tag-active">ES256</span></td>
+            <td><span class="tag tag-active">Trusted</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="font-size:0.72rem; color:#889; margin-top:8px;">Clients auto-registered via OpenID Federation directory</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Patient Registry</h2>
+    <table>
+      <tr><th>Broker ID</th><th>Name</th><th>DOB</th><th>Source Mappings</th></tr>
+      <tbody id="patients-body"><tr><td colspan="4" style="color:#666;">No patients registered</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Active Subscriptions</h2>
+    <table>
+      <tr><th>ID</th><th>Patient (Broker ID)</th><th>Channel</th><th>Status</th></tr>
+      <tbody id="subs-body"><tr><td colspan="4" style="color:#666;">None yet</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Event Log (live tail)</h2>
+    <div id="log-container"></div>
+  </div>
+</div>
+<script>
+function formatJwt(jwt) {
+  try {
+    var parts = jwt.split(".");
+    var header = JSON.parse(atob(parts[0]));
+    var payload = JSON.parse(atob(parts[1]));
+    return '<div class="jwt-viewer">' +
+      '<div class="jwt-section"><div class="jwt-label">Header</div><pre>' + JSON.stringify(header, null, 2) + '</pre></div>' +
+      '<div class="jwt-section"><div class="jwt-label">Payload</div><pre>' + JSON.stringify(payload, null, 2) + '</pre></div>' +
+      '</div>';
+  } catch(e) { return '<pre>' + jwt + '</pre>'; }
+}
+
+function loadState() {
+  fetch("/admin/state").then(function(r){ return r.json(); }).then(function(s) {
+    document.getElementById("stat-patients").textContent = s.patients ? s.patients.length : 0;
+    document.getElementById("stat-subs").textContent = s.subscriptions ? s.subscriptions.length : 0;
+    document.getElementById("stat-events").textContent = s.eventCount || 0;
+    document.getElementById("stat-mappings").textContent = s.mappings ? s.mappings.length : 0;
+
+    if (s.patients && s.patients.length) {
+      var mappingsByBroker = {};
+      if (s.mappings) {
+        s.mappings.forEach(function(m) {
+          if (!mappingsByBroker[m.broker]) mappingsByBroker[m.broker] = [];
+          mappingsByBroker[m.broker].push(m.source);
+        });
+      }
+      document.getElementById("patients-body").innerHTML = s.patients.map(function(p) {
+        var sources = (mappingsByBroker[p.brokerId] || []).join(", ") || "—";
+        return "<tr><td>" + p.brokerId + "</td><td>" + p.name + "</td><td>" + p.birthDate + "</td><td>" + sources + "</td></tr>";
+      }).join("");
+    }
+
+    if (s.subscriptions && s.subscriptions.length) {
+      document.getElementById("subs-body").innerHTML = s.subscriptions.map(function(sub) {
+        var patient = (sub.criteria || "").split("Patient/")[1] || "?";
+        return "<tr><td>" + sub.id + "</td><td>" + patient +
+          "</td><td>rest-hook</td><td><span class='tag tag-active'>active</span></td></tr>";
+      }).join("");
+    }
+  });
+}
+loadState();
+
+var es = new EventSource("/events");
+var eventCount = 0;
+es.onmessage = function(e) {
+  try {
+    var data = JSON.parse(e.data);
+    if (data.type === "state-sync") return;
+    eventCount++;
+    document.getElementById("stat-events").textContent = eventCount;
+    var container = document.getElementById("log-container");
+    var div = document.createElement("div");
+    div.className = "log-entry";
+    var time = new Date(data.timestamp || Date.now()).toLocaleTimeString();
+
+    // Classify event type for styling
+    var typeClass = "log-type";
+    if (data.type && (data.type.includes("match") || data.type.includes("demographic"))) typeClass += " match-type";
+    if (data.type && (data.type.includes("ticket") || data.type.includes("assertion"))) typeClass += " ticket-type";
+
+    var html = '<span class="log-time">' + time + '</span>' +
+      '<div class="' + typeClass + '">' + (data.type || "event") + '</div>' +
+      '<div class="log-detail">' + (data.detail || "") + '</div>';
+
+    if (data.resource) {
+      html += '<details><summary>FHIR JSON</summary><pre>' + JSON.stringify(data.resource, null, 2) + '</pre></details>';
+    }
+    if (data.permissionTicket) {
+      html += '<details><summary>Permission Ticket</summary>' + formatJwt(data.permissionTicket) + '</details>';
+    }
+    if (data.clientAssertion) {
+      html += '<details><summary>Client Assertion</summary>' + formatJwt(data.clientAssertion) + '</details>';
+    }
+    if (data.ticketPayload) {
+      html += '<details><summary>Decoded Ticket Context</summary><pre>' + JSON.stringify(data.ticketPayload.ticket_context, null, 2) + '</pre></details>';
+    }
+
+    div.innerHTML = html;
+    container.prepend(div);
+
+    // Refresh tables on relevant events
+    if (data.type === "subscription-created" || data.type === "patient-registered" || data.type === "patient-linked") {
+      loadState();
+    }
+  } catch(err) {}
+};
+</script>
+</body>
+</html>

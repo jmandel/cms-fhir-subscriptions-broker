@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mercy General EHR</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0a1a10; color: #e0e0e0; min-height: 100vh;
+  }
+  header {
+    background: #1a3c2a; padding: 16px 24px; border-bottom: 2px solid #27ae60;
+    display: flex; align-items: center; gap: 16px;
+  }
+  header h1 { font-size: 1.3rem; color: #82e0aa; }
+  header .subtitle { font-size: 0.85rem; color: #27ae60; }
+  .container { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(39,174,96,0.3);
+    border-radius: 8px; padding: 16px; margin-bottom: 16px;
+  }
+  .card h2 { font-size: 0.85rem; margin-bottom: 12px; color: #82e0aa; text-transform: uppercase; letter-spacing: 0.5px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { text-align: left; color: #8899aa; font-size: 0.72rem; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .tag { padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; display: inline-block; }
+  .tag-active { background: rgba(39,174,96,0.2); color: #2ecc71; }
+  .tag-planned { background: rgba(52,152,219,0.2); color: #5dade2; }
+  .tag-emer { background: rgba(231,76,60,0.2); color: #e74c3c; }
+  .tag-amb { background: rgba(155,89,182,0.2); color: #bb8fce; }
+  .tag-imp { background: rgba(243,156,18,0.2); color: #f39c12; }
+  .tag-default { background: rgba(255,255,255,0.1); color: #aaa; }
+  .log-entry {
+    padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 0.82rem; animation: fadeIn 0.3s;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .log-time { color: #666; font-size: 0.72rem; float: right; }
+  .log-type { font-weight: 600; color: #82e0aa; font-size: 0.75rem; text-transform: uppercase; }
+  .log-detail { color: #bbb; }
+  #log-container { max-height: 400px; overflow-y: auto; }
+  .stat { font-size: 2rem; font-weight: 700; color: #82e0aa; }
+  .stat-label { font-size: 0.8rem; color: #889; }
+  details summary { cursor: pointer; font-size: 0.8rem; color: #27ae60; }
+  details pre {
+    background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;
+    font-size: 0.72rem; overflow-x: auto; margin-top: 4px; color: #bdb;
+    max-height: 200px; overflow-y: auto;
+  }
+  select, input[type="text"], input[type="date"] {
+    background: #0d2818; color: #e0e0e0; border: 1px solid rgba(39,174,96,0.3);
+    border-radius: 4px; padding: 6px 8px; font-size: 0.82rem; font-family: inherit;
+  }
+  select:focus, input:focus { outline: none; border-color: #27ae60; }
+  .form-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .form-row > * { flex: 1; }
+  .form-label { font-size: 0.72rem; color: #889; text-transform: uppercase; margin-bottom: 3px; }
+  .form-group { display: flex; flex-direction: column; }
+  button {
+    border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;
+    font-size: 0.85rem; font-weight: 600; transition: opacity 0.2s;
+  }
+  button:hover { opacity: 0.85; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-green { background: #27ae60; color: #fff; }
+  .btn-blue { background: #2471a3; color: #fff; }
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row button { flex: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mercy General EHR</h1>
+  <span class="subtitle">Electronic Health Record System — Admin View</span>
+</header>
+<div class="container">
+  <div class="grid2">
+    <div class="card">
+      <h2>Stats</h2>
+      <div style="display:flex; gap:24px;">
+        <div><div class="stat" id="stat-patients">0</div><div class="stat-label">Patients</div></div>
+        <div><div class="stat" id="stat-encounters">0</div><div class="stat-label">Encounters</div></div>
+        <div><div class="stat" id="stat-reads">0</div><div class="stat-label">API Reads</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Create Encounter</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <div class="form-label">Patient</div>
+          <select id="create-patient"><option value="">Select patient...</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <div class="form-label">Class</div>
+          <select id="create-class">
+            <option value="EMER">Emergency (EMER)</option>
+            <option value="AMB">Ambulatory (AMB)</option>
+            <option value="IMP">Inpatient (IMP)</option>
+            <option value="OBSENC">Observation (OBSENC)</option>
+            <option value="SS">Short Stay (SS)</option>
+            <option value="VR">Virtual (VR)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <div class="form-label">Type</div>
+          <select id="create-type">
+            <option value="50849002">ED Visit</option>
+            <option value="185349003">Check-up</option>
+            <option value="308335008">Procedure</option>
+            <option value="390906007">Follow-up</option>
+            <option value="281036007">Consultation</option>
+            <option value="32485007">Hospital Admission</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <div class="form-label">Reason Code</div>
+          <select id="create-reason">
+            <option value="">None</option>
+            <option value="29857009">Chest pain</option>
+            <option value="386661006">Fever</option>
+            <option value="25064002">Headache</option>
+            <option value="267036007">Dyspnea</option>
+            <option value="161891005">Back pain</option>
+            <option value="422587007">Nausea</option>
+            <option value="3723001">Arthritis</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <div class="form-label">Scheduled Date</div>
+          <input type="date" id="create-date">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-green" id="btn-admit" onclick="createEncounter('now')">Admit Now</button>
+        <button class="btn-blue" id="btn-schedule" onclick="createEncounter('planned')">Schedule</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Master Patient Index (MPI)</h2>
+    <table>
+      <tr><th>MRN (Source ID)</th><th>Name</th><th>DOB</th><th>Encounters</th></tr>
+      <tbody id="mpi-body"><tr><td colspan="4" style="color:#666;">No patients registered</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>All Encounters</h2>
+    <table>
+      <tr><th>ID</th><th>Patient</th><th>Class</th><th>Type</th><th>Reason</th><th>Status</th><th>Date</th></tr>
+      <tbody id="enc-body"><tr><td colspan="7" style="color:#666;">No encounters yet</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Event Log (live tail)</h2>
+    <div id="log-container"></div>
+  </div>
+</div>
+<script>
+var readCount = 0;
+var knownPatients = [];
+
+// Set default date to tomorrow
+var tomorrow = new Date();
+tomorrow.setDate(tomorrow.getDate() + 1);
+document.getElementById("create-date").value = tomorrow.toISOString().split("T")[0];
+
+function classTag(code) {
+  var cls = "tag-default";
+  if (code === "EMER") cls = "tag-emer";
+  else if (code === "AMB") cls = "tag-amb";
+  else if (code === "IMP") cls = "tag-imp";
+  else if (code === "planned") cls = "tag-planned";
+  return cls;
+}
+
+function statusTag(status) {
+  if (status === "planned") return "tag-planned";
+  if (status === "in-progress") return "tag-active";
+  return "tag-default";
+}
+
+function loadState() {
+  fetch("/admin/state").then(function(r){ return r.json(); }).then(function(s) {
+    document.getElementById("stat-patients").textContent = s.patients ? s.patients.length : 0;
+    document.getElementById("stat-encounters").textContent = s.encounters ? s.encounters.length : 0;
+
+    if (s.patients && s.patients.length) {
+      knownPatients = s.patients;
+      document.getElementById("mpi-body").innerHTML = s.patients.map(function(p) {
+        return "<tr><td style='font-family:monospace;'>" + p.sourceId + "</td><td>" + p.name + "</td><td>" + p.birthDate + "</td><td>" + (p.encounterCount || 0) + "</td></tr>";
+      }).join("");
+
+      // Update patient dropdown
+      var sel = document.getElementById("create-patient");
+      var current = sel.value;
+      sel.innerHTML = '<option value="">Select patient...</option>' + s.patients.map(function(p) {
+        return '<option value="' + p.name + '|' + p.birthDate + '">' + p.name + ' (DOB: ' + p.birthDate + ')</option>';
+      }).join("");
+      if (current) sel.value = current;
+    }
+
+    if (s.encounters && s.encounters.length) {
+      document.getElementById("enc-body").innerHTML = s.encounters.map(function(e) {
+        var code = e.classCode || "EMER";
+        var display = e.classDisplay || "emergency";
+        var typeDisplay = e.typeDisplay || "ED Visit";
+        var reason = e.reasonDisplay || "—";
+        var status = e.status || "in-progress";
+        var date = e.periodStart ? new Date(e.periodStart).toLocaleDateString() + " " + new Date(e.periodStart).toLocaleTimeString() : "—";
+        return "<tr>" +
+          "<td style='font-family:monospace;'>" + e.id + "</td>" +
+          "<td>" + (e.patient || "?") + "</td>" +
+          "<td><span class='tag " + classTag(code) + "'>" + code + "</span></td>" +
+          "<td>" + typeDisplay + "</td>" +
+          "<td>" + reason + "</td>" +
+          "<td><span class='tag " + statusTag(status) + "'>" + status + "</span></td>" +
+          "<td>" + date + "</td></tr>";
+      }).join("");
+    }
+  });
+}
+loadState();
+
+async function createEncounter(mode) {
+  var patientVal = document.getElementById("create-patient").value;
+  if (!patientVal) { /* flash the select */ document.getElementById("create-patient").style.borderColor = "#e74c3c"; setTimeout(function(){ document.getElementById("create-patient").style.borderColor = ""; }, 1000); return; }
+
+  var parts = patientVal.split("|");
+  var patient = { name: parts[0], birthDate: parts[1] };
+
+  var btn = mode === "planned" ? document.getElementById("btn-schedule") : document.getElementById("btn-admit");
+  btn.disabled = true;
+  btn.textContent = mode === "planned" ? "Scheduling..." : "Admitting...";
+
+  var encounterOptions = {
+    classCode: document.getElementById("create-class").value,
+    typeCode: document.getElementById("create-type").value,
+    reasonCode: document.getElementById("create-reason").value || undefined,
+  };
+  if (mode === "planned") {
+    encounterOptions.status = "planned";
+    encounterOptions.scheduledDate = document.getElementById("create-date").value || undefined;
+  }
+
+  try {
+    await fetch("/trigger-event", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ patient: patient, encounterOptions: encounterOptions }),
+    });
+  } catch(e) {}
+
+  btn.textContent = mode === "planned" ? "Schedule" : "Admit Now";
+  btn.disabled = false;
+}
+
+var es = new EventSource("/events");
+es.onmessage = function(e) {
+  try {
+    var data = JSON.parse(e.data);
+    if (data.type === "state-sync") return;
+
+    var container = document.getElementById("log-container");
+    var div = document.createElement("div");
+    div.className = "log-entry";
+    var time = new Date(data.timestamp || Date.now()).toLocaleTimeString();
+    div.innerHTML = '<span class="log-time">' + time + '</span>' +
+      '<div class="log-type">' + (data.type || "event") + '</div>' +
+      '<div class="log-detail">' + (data.detail || "") + '</div>' +
+      (data.resource ? '<details><summary>FHIR JSON</summary><pre>' + JSON.stringify(data.resource, null, 2) + '</pre></details>' : '');
+    container.prepend(div);
+
+    if (data.type === "encounter-created" || data.type === "patient-registered" || data.type === "patient-auto-registered") {
+      loadState();
+    }
+    if (data.type === "encounter-read") {
+      readCount++;
+      document.getElementById("stat-reads").textContent = readCount;
+    }
+  } catch(err) {}
+};
+</script>
+</body>
+</html>
