@@ -6,25 +6,109 @@
 <title>FHIR Subscriptions Broker — Demo Dashboard</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  /* Theme variables */
+  :root {
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-tertiary: rgba(0,0,0,0.2);
+    --border-primary: #0f3460;
+    --text-primary: #e0e0e0;
+    --text-secondary: #8899aa;
+    --text-heading: #fff;
+    --patient-banner-bg: rgba(155,89,182,0.15);
+    --patient-banner-border: rgba(155,89,182,0.3);
+    --patient-name: #d7bde2;
+    --panel-client-border: #3498db;
+    --panel-client-header-bg: #1a3a5c;
+    --panel-client-header-color: #85c1e9;
+    --panel-broker-border: #e67e22;
+    --panel-broker-header-bg: #4a2f10;
+    --panel-broker-header-color: #f0b27a;
+    --panel-datasource-border: #27ae60;
+    --panel-datasource-header-bg: #1a3c2a;
+    --panel-datasource-header-color: #82e0aa;
+    --btn-outline-border: rgba(255,255,255,0.2);
+    --btn-outline-color: #aaa;
+    --btn-outline-hover-border: rgba(255,255,255,0.4);
+    --btn-outline-hover-color: #ddd;
+    --event-bg: rgba(255,255,255,0.05);
+    --event-detail: #ccc;
+    --event-time: #666;
+    --details-summary: #7799bb;
+    --details-pre-bg: rgba(0,0,0,0.4);
+    --details-pre-color: #aaccee;
+    --state-box-bg: rgba(255,255,255,0.05);
+    --state-label: #889;
+    --state-value: #ddd;
+    --step-bg: rgba(255,255,255,0.05);
+    --step-color: #889;
+    --knowledge-card-bg: rgba(52,152,219,0.08);
+    --knowledge-card-border: rgba(52,152,219,0.2);
+    --knowledge-title: #85c1e9;
+    --select-bg: #1a3c2a;
+    --select-border: rgba(39,174,96,0.3);
+  }
+  
+  body.light-mode {
+    --bg-primary: #f5f7fa;
+    --bg-secondary: #e8eef4;
+    --bg-tertiary: rgba(0,0,0,0.03);
+    --border-primary: #c5d1dc;
+    --text-primary: #333;
+    --text-secondary: #666;
+    --text-heading: #222;
+    --patient-banner-bg: rgba(155,89,182,0.1);
+    --patient-banner-border: rgba(155,89,182,0.25);
+    --patient-name: #7b4a9e;
+    --panel-client-header-bg: #d6eaf8;
+    --panel-client-header-color: #1a5276;
+    --panel-broker-header-bg: #fdebd0;
+    --panel-broker-header-color: #935116;
+    --panel-datasource-header-bg: #d5f5e3;
+    --panel-datasource-header-color: #1e8449;
+    --btn-outline-border: rgba(0,0,0,0.15);
+    --btn-outline-color: #555;
+    --btn-outline-hover-border: rgba(0,0,0,0.3);
+    --btn-outline-hover-color: #333;
+    --event-bg: rgba(0,0,0,0.03);
+    --event-detail: #555;
+    --event-time: #888;
+    --details-summary: #2471a3;
+    --details-pre-bg: rgba(0,0,0,0.05);
+    --details-pre-color: #2c5282;
+    --state-box-bg: rgba(0,0,0,0.03);
+    --state-label: #666;
+    --state-value: #333;
+    --step-bg: rgba(0,0,0,0.05);
+    --step-color: #666;
+    --knowledge-card-bg: rgba(52,152,219,0.08);
+    --knowledge-card-border: rgba(52,152,219,0.2);
+    --knowledge-title: #1a5276;
+    --select-bg: #e8f6ef;
+    --select-border: rgba(39,174,96,0.4);
+  }
+  
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #1a1a2e;
-    color: #e0e0e0;
+    background: var(--bg-primary);
+    color: var(--text-primary);
     min-height: 100vh;
+    transition: background 0.3s, color 0.3s;
   }
   header {
-    background: #16213e;
+    background: var(--bg-secondary);
     padding: 12px 24px;
-    border-bottom: 2px solid #0f3460;
+    border-bottom: 2px solid var(--border-primary);
     display: flex;
     align-items: center;
     gap: 16px;
   }
-  header h1 { font-size: 1.3rem; font-weight: 600; color: #fff; }
-  header .subtitle { font-size: 0.85rem; color: #8899aa; }
+  header h1 { font-size: 1.3rem; font-weight: 600; color: var(--text-heading); }
+  header .subtitle { font-size: 0.85rem; color: var(--text-secondary); }
   .patient-banner {
-    background: rgba(155,89,182,0.15);
-    border-bottom: 1px solid rgba(155,89,182,0.3);
+    background: var(--patient-banner-bg);
+    border-bottom: 1px solid var(--patient-banner-border);
     padding: 8px 24px;
     display: flex;
     align-items: center;
@@ -36,8 +120,8 @@
     display: flex; align-items: center; justify-content: center;
     font-weight: 700; font-size: 0.7rem; color: #fff;
   }
-  .patient-banner .name { font-weight: 600; color: #d7bde2; }
-  .patient-banner .detail { color: #8899aa; font-size: 0.78rem; }
+  .patient-banner .name { font-weight: 600; color: var(--patient-name); }
+  .patient-banner .detail { color: var(--text-secondary); font-size: 0.78rem; }
   .status-dot {
     width: 10px; height: 10px; border-radius: 50%;
     display: inline-block; margin-right: 4px;
@@ -72,18 +156,18 @@
     padding: 10px 14px;
     flex: 1;
     overflow-y: auto;
-    background: rgba(0,0,0,0.2);
+    background: var(--bg-tertiary);
   }
 
   /* Colors */
-  .panel.client { border: 2px solid #3498db; }
-  .panel.client .panel-header { background: #1a3a5c; color: #85c1e9; }
+  .panel.client { border: 2px solid var(--panel-client-border); }
+  .panel.client .panel-header { background: var(--panel-client-header-bg); color: var(--panel-client-header-color); }
 
-  .panel.broker { border: 2px solid #e67e22; }
-  .panel.broker .panel-header { background: #4a2f10; color: #f0b27a; }
+  .panel.broker { border: 2px solid var(--panel-broker-border); }
+  .panel.broker .panel-header { background: var(--panel-broker-header-bg); color: var(--panel-broker-header-color); }
 
-  .panel.datasource { border: 2px solid #27ae60; }
-  .panel.datasource .panel-header { background: #1a3c2a; color: #82e0aa; }
+  .panel.datasource { border: 2px solid var(--panel-datasource-border); }
+  .panel.datasource .panel-header { background: var(--panel-datasource-header-bg); color: var(--panel-datasource-header-color); }
 
   /* Buttons */
   button {
@@ -102,12 +186,25 @@
   .btn-green { background: #27ae60; color: #fff; }
   .btn-outline {
     background: transparent;
-    border: 1px solid rgba(255,255,255,0.2);
-    color: #aaa;
+    border: 1px solid var(--btn-outline-border);
+    color: var(--btn-outline-color);
     font-size: 0.75rem;
     padding: 4px 10px;
   }
-  .btn-outline:hover { border-color: rgba(255,255,255,0.4); color: #ddd; }
+  .btn-outline:hover { border-color: var(--btn-outline-hover-border); color: var(--btn-outline-hover-color); }
+  
+  /* Theme toggle */
+  .theme-toggle {
+    background: transparent;
+    border: 1px solid var(--btn-outline-border);
+    color: var(--btn-outline-color);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    margin-left: 8px;
+  }
+  .theme-toggle:hover { border-color: var(--btn-outline-hover-border); color: var(--btn-outline-hover-color); }
 
   /* Split button */
   .split-btn {
@@ -132,7 +229,7 @@
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #8899aa;
+    color: var(--text-secondary);
     margin-bottom: 6px;
     font-weight: 600;
     display: flex;
@@ -147,7 +244,7 @@
     gap: 4px;
   }
   .event {
-    background: rgba(255,255,255,0.05);
+    background: var(--event-bg);
     border-radius: 4px;
     padding: 6px 8px;
     font-size: 0.78rem;
@@ -170,34 +267,34 @@
     letter-spacing: 0.3px;
     margin-bottom: 1px;
   }
-  .event-detail { color: #ccc; font-size: 0.78rem; }
-  .event-time { color: #666; font-size: 0.65rem; float: right; }
+  .event-detail { color: var(--event-detail); font-size: 0.78rem; }
+  .event-time { color: var(--event-time); font-size: 0.65rem; float: right; }
 
   /* JSON details */
   details { margin-top: 4px; }
-  details summary { cursor: pointer; font-size: 0.7rem; color: #7799bb; }
+  details summary { cursor: pointer; font-size: 0.7rem; color: var(--details-summary); }
   details pre {
-    background: rgba(0,0,0,0.4);
+    background: var(--details-pre-bg);
     padding: 6px;
     border-radius: 4px;
     font-size: 0.68rem;
     overflow-x: auto;
     margin-top: 3px;
-    color: #aaccee;
+    color: var(--details-pre-color);
     max-height: 150px;
     overflow-y: auto;
   }
 
   /* State display */
   .state-box {
-    background: rgba(255,255,255,0.05);
+    background: var(--state-box-bg);
     border-radius: 4px;
     padding: 6px 8px;
     font-size: 0.78rem;
     margin-bottom: 4px;
   }
-  .state-label { color: #889; font-size: 0.7rem; }
-  .state-value { color: #ddd; font-family: monospace; word-break: break-all; font-size: 0.78rem; }
+  .state-label { color: var(--state-label); font-size: 0.7rem; }
+  .state-value { color: var(--state-value); font-family: monospace; word-break: break-all; font-size: 0.78rem; }
   .badge {
     display: inline-block;
     padding: 2px 8px;
@@ -213,8 +310,8 @@
     display: flex;
     gap: 6px;
     padding: 6px 24px;
-    background: #16213e;
-    border-bottom: 1px solid #0f3460;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-primary);
     flex-wrap: wrap;
   }
   .step {
@@ -224,8 +321,8 @@
     padding: 3px 10px;
     border-radius: 16px;
     font-size: 0.73rem;
-    background: rgba(255,255,255,0.05);
-    color: #889;
+    background: var(--step-bg);
+    color: var(--step-color);
   }
   .step.done { background: rgba(46,204,113,0.15); color: #2ecc71; }
   .step.current { background: rgba(243,156,18,0.15); color: #f39c12; }
@@ -239,20 +336,24 @@
     font-size: 0.65rem;
     background: rgba(255,255,255,0.1);
   }
+  body.light-mode .step-num {
+    background: rgba(0,0,0,0.1);
+  }
   .step.done .step-num { background: #27ae60; color: #fff; }
   .step.current .step-num { background: #e67e22; color: #fff; }
 
   /* Knowledge cards */
   .knowledge-card {
-    background: rgba(52,152,219,0.08);
-    border: 1px solid rgba(52,152,219,0.2);
+    background: var(--knowledge-card-bg);
+    border: 1px solid var(--knowledge-card-border);
     border-radius: 4px;
     padding: 6px 8px;
     margin-bottom: 4px;
     font-size: 0.78rem;
   }
-  .knowledge-card .kc-title { font-weight: 600; color: #85c1e9; font-size: 0.75rem; }
+  .knowledge-card .kc-title { font-weight: 600; color: var(--knowledge-title); font-size: 0.75rem; }
   .knowledge-card .kc-detail { color: #aaa; font-size: 0.72rem; }
+  body.light-mode .knowledge-card .kc-detail { color: #666; }
 
   .spinner {
     display: inline-block;
@@ -262,6 +363,10 @@
     border-top-color: #fff;
     animation: spin 0.8s linear infinite;
     vertical-align: middle;
+  }
+  body.light-mode .spinner {
+    border-color: rgba(0,0,0,0.2);
+    border-top-color: #333;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -344,6 +449,7 @@
     <span class="status-dot disconnected" id="dot-client"></span>Client
     <span class="status-dot disconnected" id="dot-broker" style="margin-left:6px;"></span>Broker
     <span class="status-dot disconnected" id="dot-datasource" style="margin-left:6px;"></span>EHR
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">☀️ Light</button>
   </span>
 </header>
 
@@ -957,6 +1063,26 @@ function markStep(n) {
     }
   }
 }
+
+// --- Theme toggle ---
+function toggleTheme() {
+  var body = document.body;
+  var btn = document.querySelector('.theme-toggle');
+  body.classList.toggle('light-mode');
+  var isLight = body.classList.contains('light-mode');
+  btn.innerHTML = isLight ? '🌙 Dark' : '☀️ Light';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+
+// Initialize theme from localStorage
+(function initTheme() {
+  var savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
+    var btn = document.querySelector('.theme-toggle');
+    if (btn) btn.innerHTML = '🌙 Dark';
+  }
+})();
 </script>
 
 </body>

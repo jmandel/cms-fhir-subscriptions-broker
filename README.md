@@ -4,6 +4,8 @@
 
 A brokered model for delivering FHIR encounter notifications across CMS-Aligned Networks, meeting the July 4, 2026 CMS Interoperability Framework requirement. Apps connect once to a Broker and receive notifications from any provider in the network — without integrating with each site individually.
 
+**[🔗 Live Demo](https://joshuamandel.com/cms-fhir-subscriptions-broker/)** — Try the interactive demonstration
+
 ## Documents
 
 - **[Specification](index.md)** — Architecture, protocol flows, and authorization model

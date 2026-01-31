@@ -6,26 +6,87 @@
 <title>Mercy General EHR</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  /* Theme variables */
+  :root {
+    --bg-primary: #0a1a10;
+    --bg-header: #1a3c2a;
+    --border-primary: #27ae60;
+    --text-primary: #e0e0e0;
+    --text-secondary: #8899aa;
+    --text-heading: #82e0aa;
+    --text-subtitle: #27ae60;
+    --card-bg: rgba(255,255,255,0.05);
+    --card-border: rgba(39,174,96,0.3);
+    --table-header-border: rgba(255,255,255,0.1);
+    --table-cell-border: rgba(255,255,255,0.05);
+    --log-entry-border: rgba(255,255,255,0.05);
+    --details-summary: #27ae60;
+    --details-pre-bg: rgba(0,0,0,0.4);
+    --details-pre-color: #bdb;
+    --input-bg: #0d2818;
+    --input-border: rgba(39,174,96,0.3);
+    --stat-color: #82e0aa;
+    --stat-label: #889;
+  }
+  
+  body.light-mode {
+    --bg-primary: #f5faf7;
+    --bg-header: #d5f5e3;
+    --border-primary: #27ae60;
+    --text-primary: #333;
+    --text-secondary: #666;
+    --text-heading: #1e8449;
+    --text-subtitle: #229954;
+    --card-bg: rgba(0,0,0,0.02);
+    --card-border: rgba(39,174,96,0.25);
+    --table-header-border: rgba(0,0,0,0.1);
+    --table-cell-border: rgba(0,0,0,0.05);
+    --log-entry-border: rgba(0,0,0,0.08);
+    --details-summary: #229954;
+    --details-pre-bg: rgba(0,0,0,0.05);
+    --details-pre-color: #1e5631;
+    --input-bg: #e8f6ef;
+    --input-border: rgba(39,174,96,0.4);
+    --stat-color: #1e8449;
+    --stat-label: #666;
+  }
+  
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #0a1a10; color: #e0e0e0; min-height: 100vh;
+    background: var(--bg-primary); color: var(--text-primary); min-height: 100vh;
+    transition: background 0.3s, color 0.3s;
   }
   header {
-    background: #1a3c2a; padding: 16px 24px; border-bottom: 2px solid #27ae60;
+    background: var(--bg-header); padding: 16px 24px; border-bottom: 2px solid var(--border-primary);
     display: flex; align-items: center; gap: 16px;
   }
-  header h1 { font-size: 1.3rem; color: #82e0aa; }
-  header .subtitle { font-size: 0.85rem; color: #27ae60; }
+  header h1 { font-size: 1.3rem; color: var(--text-heading); }
+  header .subtitle { font-size: 0.85rem; color: var(--text-subtitle); }
+  
+  /* Theme toggle */
+  .theme-toggle {
+    background: transparent;
+    border: 1px solid rgba(39,174,96,0.4);
+    color: var(--text-subtitle);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    margin-left: auto;
+  }
+  .theme-toggle:hover { border-color: var(--border-primary); }
+  
   .container { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .card {
-    background: rgba(255,255,255,0.05); border: 1px solid rgba(39,174,96,0.3);
+    background: var(--card-bg); border: 1px solid var(--card-border);
     border-radius: 8px; padding: 16px; margin-bottom: 16px;
   }
-  .card h2 { font-size: 0.85rem; margin-bottom: 12px; color: #82e0aa; text-transform: uppercase; letter-spacing: 0.5px; }
+  .card h2 { font-size: 0.85rem; margin-bottom: 12px; color: var(--text-heading); text-transform: uppercase; letter-spacing: 0.5px; }
   table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-  th { text-align: left; color: #8899aa; font-size: 0.72rem; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-  td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  th { text-align: left; color: var(--text-secondary); font-size: 0.72rem; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--table-header-border); }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--table-cell-border); }
   .tag { padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; display: inline-block; }
   .tag-active { background: rgba(39,174,96,0.2); color: #2ecc71; }
   .tag-planned { background: rgba(52,152,219,0.2); color: #5dade2; }
@@ -33,31 +94,34 @@
   .tag-amb { background: rgba(155,89,182,0.2); color: #bb8fce; }
   .tag-imp { background: rgba(243,156,18,0.2); color: #f39c12; }
   .tag-default { background: rgba(255,255,255,0.1); color: #aaa; }
+  body.light-mode .tag-default { background: rgba(0,0,0,0.08); color: #666; }
   .log-entry {
-    padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding: 6px 8px; border-bottom: 1px solid var(--log-entry-border);
     font-size: 0.82rem; animation: fadeIn 0.3s;
   }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   .log-time { color: #666; font-size: 0.72rem; float: right; }
-  .log-type { font-weight: 600; color: #82e0aa; font-size: 0.75rem; text-transform: uppercase; }
+  body.light-mode .log-time { color: #888; }
+  .log-type { font-weight: 600; color: var(--text-heading); font-size: 0.75rem; text-transform: uppercase; }
   .log-detail { color: #bbb; }
+  body.light-mode .log-detail { color: #555; }
   #log-container { max-height: 400px; overflow-y: auto; }
-  .stat { font-size: 2rem; font-weight: 700; color: #82e0aa; }
-  .stat-label { font-size: 0.8rem; color: #889; }
-  details summary { cursor: pointer; font-size: 0.8rem; color: #27ae60; }
+  .stat { font-size: 2rem; font-weight: 700; color: var(--stat-color); }
+  .stat-label { font-size: 0.8rem; color: var(--stat-label); }
+  details summary { cursor: pointer; font-size: 0.8rem; color: var(--details-summary); }
   details pre {
-    background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;
-    font-size: 0.72rem; overflow-x: auto; margin-top: 4px; color: #bdb;
+    background: var(--details-pre-bg); padding: 8px; border-radius: 4px;
+    font-size: 0.72rem; overflow-x: auto; margin-top: 4px; color: var(--details-pre-color);
     max-height: 200px; overflow-y: auto;
   }
   select, input[type="text"], input[type="date"] {
-    background: #0d2818; color: #e0e0e0; border: 1px solid rgba(39,174,96,0.3);
+    background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--input-border);
     border-radius: 4px; padding: 6px 8px; font-size: 0.82rem; font-family: inherit;
   }
-  select:focus, input:focus { outline: none; border-color: #27ae60; }
+  select:focus, input:focus { outline: none; border-color: var(--border-primary); }
   .form-row { display: flex; gap: 8px; margin-bottom: 8px; }
   .form-row > * { flex: 1; }
-  .form-label { font-size: 0.72rem; color: #889; text-transform: uppercase; margin-bottom: 3px; }
+  .form-label { font-size: 0.72rem; color: var(--stat-label); text-transform: uppercase; margin-bottom: 3px; }
   .form-group { display: flex; flex-direction: column; }
   button {
     border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;
@@ -133,6 +197,7 @@
 <header>
   <h1>Mercy General EHR</h1>
   <span class="subtitle">Electronic Health Record System — Admin View</span>
+  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">☀️ Light</button>
 </header>
 <div class="container">
   <div class="grid2">
@@ -347,6 +412,26 @@ es.onmessage = function(e) {
     }
   } catch(err) {}
 };
+
+// --- Theme toggle ---
+function toggleTheme() {
+  var body = document.body;
+  var btn = document.querySelector('.theme-toggle');
+  body.classList.toggle('light-mode');
+  var isLight = body.classList.contains('light-mode');
+  btn.innerHTML = isLight ? '🌙 Dark' : '☀️ Light';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+
+// Initialize theme from localStorage
+(function initTheme() {
+  var savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
+    var btn = document.querySelector('.theme-toggle');
+    if (btn) btn.innerHTML = '🌙 Dark';
+  }
+})();
 </script>
 </body>
 </html>
