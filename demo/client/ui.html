@@ -193,6 +193,23 @@
   }
   .tech-row .label { color: var(--tech-label); }
 
+  /* Navigation notice (shown after ID proofing completion) */
+  .navigation-notice {
+    background: rgba(52,152,219,0.1);
+    border-color: rgba(52,152,219,0.3);
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .navigation-notice-title {
+    color: var(--text-heading);
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+  }
+  .navigation-notice-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+  }
+
   /* Mobile responsive styles */
   @media (max-width: 600px) {
     header {
@@ -348,6 +365,16 @@
       <div class="welcome-name" id="welcome-name"></div>
       <div class="welcome-subtitle">Your health records, all in one place</div>
       <div class="welcome-badge">Identity Verified (IAL2)</div>
+    </div>
+
+    <!-- Navigation notice for users who opened this from dashboard -->
+    <div class="card navigation-notice">
+      <div class="navigation-notice-title">
+        ✓ Setup complete!
+      </div>
+      <div class="navigation-notice-subtitle">
+        You can close this tab or switch back to the <strong>Dashboard</strong> to trigger encounters. This tab will stay updated as information arrives.
+      </div>
     </div>
 
     <div class="card">
@@ -636,9 +663,9 @@ function addEncounterCard(enc) {
 </script>
 
 <footer class="app-footer">
-  <a href="https://github.com/jmandel/cms-fhir-subscriptions-broker" target="_blank">📄 Project Spec on GitHub</a>
+  <a href="https://github.com/jmandel/cms-fhir-subscriptions-broker" target="_blank">📄 GitHub</a>
   <span class="separator">|</span>
-  <a href="https://www.cms.gov/priorities/key-initiatives/interoperability" target="_blank">🏥 CMS Health Tech Ecosystem</a>
+  <a href="https://www.cms.gov/priorities/key-initiatives/interoperability" target="_blank">🏥 CMS Interoperability</a>
 </footer>
 </body>
 </html>
