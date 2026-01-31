@@ -242,10 +242,16 @@
 
 <script>
 var params = new URLSearchParams(window.location.search);
-var PATIENT = {
-  name: params.get("name") || "Unknown Patient",
-  birthDate: params.get("birthDate") || "1990-01-01",
-};
+var PATIENT;
+var hintParam = params.get("hint");
+if (hintParam) {
+  try { PATIENT = JSON.parse(atob(hintParam)); } catch(e) { PATIENT = { name: "Unknown Patient", birthDate: "1990-01-01" }; }
+} else {
+  PATIENT = {
+    name: params.get("name") || "Unknown Patient",
+    birthDate: params.get("birthDate") || "1990-01-01",
+  };
+}
 var PATIENT_KEY = PATIENT.name + "|" + PATIENT.birthDate;
 
 document.getElementById("patient-display").textContent = PATIENT.name;

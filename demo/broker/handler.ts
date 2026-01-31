@@ -1,8 +1,8 @@
 // Broker handler — no server, just exports handle()
-import { resolve } from "path";
 import { makeSubscription, makeNotificationBundle } from "../shared/types";
 import { createMockToken, extractPermissionTicket, matchDemographics, decodeMockToken } from "../shared/auth";
-import { serviceUrl, internalUrl, injectHtmlConfig } from "../config";
+import { serviceUrl, internalUrl, injectHtmlConfig, isStatic } from "../config";
+import type { HandlerContext } from "../shared/handler-context";
 
 // Dynamic patient registry: brokerId → { name, birthDate, sourceIds: Map<sourceSystem, sourceId> }
 const patients: Map<string, { brokerId: string; name: string; birthDate: string }> = new Map();
@@ -44,14 +44,21 @@ function findPatientByDemographics(traits: any): { brokerId: string; name: strin
   return null;
 }
 
-const uiPath = resolve(import.meta.dir, "ui.html");
+async function readUiHtml(): Promise<string | null> {
+  if (isStatic) return null;
+  const { resolve } = await import("path");
+  const uiPath = resolve(import.meta.dir, "ui.html");
+  return Bun.file(uiPath).text();
+}
 
-export async function handle(req: Request): Promise<Response> {
+export async function handle(req: Request, ctx?: HandlerContext): Promise<Response> {
+  const f = ctx?.fetch ?? globalThis.fetch;
   const url = new URL(req.url);
   const method = req.method;
 
   if (url.pathname === "/" && method === "GET") {
-    const raw = await Bun.file(uiPath).text();
+    const raw = await readUiHtml();
+    if (!raw) return new Response("Not found", { status: 404 });
     return new Response(injectHtmlConfig(raw, "broker"), {
       headers: { "Content-Type": "text/html; charset=utf-8" },
     });
@@ -230,7 +237,7 @@ export async function handle(req: Request): Promise<Response> {
       pushEvent({ type: "notification-sending", detail: `Delivering notification for Subscription/${id}`, resource: bundle });
 
       try {
-        const resp = await fetch(`${internalUrl("client")}/notifications`, {
+        const resp = await f(`${internalUrl("client")}/notifications`, {
           method: "POST",
           headers: { "Content-Type": "application/fhir+json" },
           body: JSON.stringify(bundle),

@@ -1,14 +1,31 @@
 // Centralized configuration for the FHIR Subscriptions Broker demo.
 // All service URLs are derived from these settings.
 //
-// Environment variables:
+// Modes:
+//   "subdomain" — routes by Host header (e.g., broker.localhost:3000)
+//   "path"      — routes by URL path prefix (e.g., localhost:3000/broker)
+//   "static"    — client-side only; all services run in a Service Worker
+//
+// Environment variables (server modes only):
 //   BASE_URL       — public base URL (default: http://localhost:3000)
-//   ROUTING_MODE   — "subdomain" or "path" (default: subdomain)
+//   ROUTING_MODE   — "subdomain" | "path" | "static" (default: subdomain)
 //   PORT           — server listen port (default: 3000)
 
-const mode = (process.env.ROUTING_MODE || "subdomain") as "subdomain" | "path";
-const port = parseInt(process.env.PORT || "3000");
-const baseUrl = process.env.BASE_URL || `http://localhost:${port}`;
+// In a Service Worker context, process.env won't exist.
+// The static build injects __STATIC_MODE__ = true at bundle time.
+declare var __STATIC_MODE__: boolean | undefined;
+
+const isStaticBuild = typeof __STATIC_MODE__ !== "undefined" && __STATIC_MODE__;
+
+const mode: "subdomain" | "path" | "static" = isStaticBuild
+  ? "static"
+  : ((typeof process !== "undefined" && process.env?.ROUTING_MODE) || "subdomain") as any;
+const port = (!isStaticBuild && typeof process !== "undefined" && process.env?.PORT)
+  ? parseInt(process.env.PORT)
+  : 3000;
+const baseUrl = isStaticBuild
+  ? ""  // same-origin, relative paths
+  : ((typeof process !== "undefined" && process.env?.BASE_URL) || `http://localhost:${port}`);
 
 export const config = {
   port,
@@ -21,6 +38,8 @@ export const config = {
   },
 } as const;
 
+export const isStatic = mode === "static";
+
 export type ServiceName = keyof typeof config.services;
 
 /** URL for browser / external access to a service */
@@ -29,6 +48,7 @@ export function serviceUrl(service: ServiceName): string {
   if (config.mode === "subdomain") {
     return `http://${s.subdomain}.localhost:${config.port}`;
   }
+  // Both "path" and "static" use path prefixes
   return `${config.baseUrl}${s.pathPrefix}`;
 }
 
@@ -37,6 +57,11 @@ export function internalUrl(service: ServiceName): string {
   const s = config.services[service];
   if (config.mode === "subdomain") {
     return `http://${s.subdomain}.localhost:${config.port}`;
+  }
+  if (config.mode === "static") {
+    // In static mode, inter-service calls go through the SW's routedFetch
+    // which matches on path prefix against the SW's own origin
+    return `${s.pathPrefix}`;
   }
   return `http://localhost:${config.port}${s.pathPrefix}`;
 }
@@ -53,7 +78,7 @@ export function injectHtmlConfig(html: string, selfService?: ServiceName): strin
     `var __BROKER__ = ${JSON.stringify(serviceUrl("broker"))};`,
     `var __CLIENT__ = ${JSON.stringify(serviceUrl("client"))};`,
     `var __EHR__ = ${JSON.stringify(serviceUrl("dataSource"))};`,
-    `var __DASHBOARD__ = ${JSON.stringify(config.baseUrl)};`,
+    `var __DASHBOARD__ = ${JSON.stringify(config.baseUrl || "/")};`,
   ];
   if (selfService !== undefined) {
     vars.push(`var __BASE__ = ${JSON.stringify(servicePath(selfService))};`);

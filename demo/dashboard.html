@@ -50,7 +50,7 @@
     grid-template-columns: 1fr 1fr 1fr;
     gap: 12px;
     padding: 12px;
-    min-height: calc(100vh - 120px);
+    height: calc(100vh - 120px);
   }
 
   .panel {
@@ -145,8 +145,6 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    max-height: 400px;
-    overflow-y: auto;
   }
   .event {
     background: rgba(255,255,255,0.05);
@@ -440,6 +438,15 @@
 const BROKER = __BROKER__;
 const CLIENT = __CLIENT__;
 const EHR = __EHR__;
+var IS_STATIC = typeof __STATIC__ !== "undefined" && __STATIC__;
+
+// --- Mode-aware fetch & SSE ---
+// In static mode, API calls go to in-page handlers via __apiFetch.
+// In server mode, standard fetch and EventSource are used.
+function apiFetch(url, init) {
+  if (IS_STATIC && window.__apiFetch) return window.__apiFetch(url, init);
+  return fetch(url, init);
+}
 
 // --- Generate random patient identity for this tab ---
 const FIRST_NAMES = ["Alice","Maria","James","Carlos","Priya","Kenji","Fatima","Elena","David","Sarah","Omar","Yuki","Rosa","Thomas","Amara","Liam","Sofia","Andre","Mei","Noah","Zara","Ivan","Nia","Leo","Grace","Raj","Hana","Oscar","Chloe","Felix"];
@@ -481,6 +488,24 @@ document.getElementById("patient-detail").textContent = "DOB: " + MY_PATIENT.bir
 
 // --- SSE connections ---
 function connectSSE(url, logEl, dotEl, cssClass, filterFn) {
+  if (IS_STATIC && window.__sseSubscribe) {
+    // Static mode: read the handler's streaming response directly
+    var sub = window.__sseSubscribe(url, {
+      onopen: function() { dotEl.className = "status-dot connected"; },
+      onerror: function() { dotEl.className = "status-dot disconnected"; },
+      onmessage: function(dataStr) {
+        try {
+          var data = JSON.parse(dataStr);
+          if (data.type === "state-sync") { handleStateSync(cssClass, data); return; }
+          if (filterFn && !filterFn(data)) return;
+          addEvent(logEl, data, cssClass);
+          handleEvent(cssClass, data);
+        } catch(err) {}
+      },
+    });
+    return sub;
+  }
+  // Server mode: real EventSource
   var es = new EventSource(url);
   es.onopen = function() { dotEl.className = "status-dot connected"; };
   es.onerror = function() { dotEl.className = "status-dot disconnected"; };
@@ -491,7 +516,6 @@ function connectSSE(url, logEl, dotEl, cssClass, filterFn) {
         handleStateSync(cssClass, data);
         return;
       }
-      // Apply filter — skip events not for our patient
       if (filterFn && !filterFn(data)) return;
       addEvent(logEl, data, cssClass);
       handleEvent(cssClass, data);
@@ -690,9 +714,12 @@ function filterBrokerEvent(data) {
   }
   // Show events mentioning our broker ID
   if (data.detail && data.detail.includes(MY_BROKER_ID)) return true;
+  // Show events mentioning our source ID (e.g., event-received from data source)
+  if (MY_SOURCE_ID && data.detail && data.detail.includes(MY_SOURCE_ID)) return true;
   // Show subscription events for our patient
   if (data.resource && data.resource.criteria && data.resource.criteria.includes(MY_BROKER_ID)) return true;
-  // Show generic events (token-issued etc) that mention our broker ID
+  // Show notification delivery events (these follow immediately after our patient-matched)
+  if (data.type === "notification-sending" || data.type === "notification-delivered") return true;
   return false;
 }
 
@@ -705,10 +732,30 @@ function filterEhrEvent(data) {
   return false;
 }
 
-// Connect SSE with filters
-connectSSE(CLIENT + "/events", document.getElementById("client-events"), document.getElementById("dot-client"), "client-event", filterClientEvent);
-connectSSE(BROKER + "/events", document.getElementById("broker-events"), document.getElementById("dot-broker"), "broker-event", filterBrokerEvent);
-connectSSE(EHR + "/events", document.getElementById("datasource-events"), document.getElementById("dot-datasource"), "datasource-event", filterEhrEvent);
+// --- Initialize SSE + state restore (deferred in static mode) ---
+function initConnections() {
+  connectSSE(CLIENT + "/events", document.getElementById("client-events"), document.getElementById("dot-client"), "client-event", filterClientEvent);
+  connectSSE(BROKER + "/events", document.getElementById("broker-events"), document.getElementById("dot-broker"), "broker-event", filterBrokerEvent);
+  connectSSE(EHR + "/events", document.getElementById("datasource-events"), document.getElementById("dot-datasource"), "datasource-event", filterEhrEvent);
+
+  // Restore state if already onboarded
+  if (ONBOARDED && MY_BROKER_ID) {
+    unlockPanels();
+    apiFetch(CLIENT + "/state?name=" + encodeURIComponent(MY_PATIENT.name) + "&birthDate=" + MY_PATIENT.birthDate)
+      .then(function(r){ return r.json(); })
+      .then(function(s){
+        if (s.token) updateClientPanel(s);
+        if (s.encounters) s.encounters.forEach(function(enc){ addEncounterKnowledge(enc); });
+      }).catch(function(){});
+  }
+}
+
+if (IS_STATIC) {
+  if (window.__staticReady) { initConnections(); }
+  else { window.addEventListener("static-runtime-ready", initConnections); }
+} else {
+  initConnections();
+}
 
 function unlockPanels() {
   document.getElementById("btn-trigger").disabled = false;
@@ -723,18 +770,6 @@ function unlockPanels() {
   sessionStorage.setItem("demo-onboarded", "true");
 }
 
-// Restore state if already onboarded
-if (ONBOARDED && MY_BROKER_ID) {
-  unlockPanels();
-  // Fetch current client state
-  fetch(CLIENT + "/state?name=" + encodeURIComponent(MY_PATIENT.name) + "&birthDate=" + MY_PATIENT.birthDate)
-    .then(function(r){ return r.json(); })
-    .then(function(s){
-      if (s.token) updateClientPanel(s);
-      if (s.encounters) s.encounters.forEach(function(enc){ addEncounterKnowledge(enc); });
-    }).catch(function(){});
-}
-
 // --- Actions ---
 async function doQuickAuth() {
   var btn = document.getElementById("btn-auth-quick");
@@ -744,7 +779,7 @@ async function doQuickAuth() {
 
   try {
     // Step 1: Register patient with broker (dashboard orchestrates)
-    var brokerResp = await fetch(BROKER + "/register-patient", {
+    var brokerResp = await apiFetch(BROKER + "/register-patient", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ sourceId: "pending", name: MY_PATIENT.name, birthDate: MY_PATIENT.birthDate }),
@@ -754,7 +789,7 @@ async function doQuickAuth() {
     sessionStorage.setItem("demo-brokerId", MY_BROKER_ID);
 
     // Step 2: Register patient with Mercy EHR
-    var ehrResp = await fetch(EHR + "/register-patient", {
+    var ehrResp = await apiFetch(EHR + "/register-patient", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ name: MY_PATIENT.name, birthDate: MY_PATIENT.birthDate }),
@@ -764,14 +799,14 @@ async function doQuickAuth() {
     sessionStorage.setItem("demo-sourceId", MY_SOURCE_ID);
 
     // Step 2b: Link source ID in broker
-    await fetch(BROKER + "/register-patient", {
+    await apiFetch(BROKER + "/register-patient", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ sourceId: MY_SOURCE_ID, name: MY_PATIENT.name, birthDate: MY_PATIENT.birthDate }),
     });
 
     // Step 3: Tell client to onboard (just demographics — client does the rest)
-    var clientResp = await fetch(CLIENT + "/quick-auth", {
+    var clientResp = await apiFetch(CLIENT + "/quick-auth", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ patient: MY_PATIENT }),
@@ -786,6 +821,7 @@ async function doQuickAuth() {
     unlockPanels();
     btn.textContent = "Onboarded";
   } catch (e) {
+    console.error("[dashboard] doQuickAuth failed:", e);
     btn.textContent = "Failed — retry";
     btn.disabled = false;
     document.getElementById("btn-auth-full").disabled = false;
@@ -793,9 +829,9 @@ async function doQuickAuth() {
 }
 
 function doFullAuth() {
-  // Open client UI with patient info in query params
-  var params = "?name=" + encodeURIComponent(MY_PATIENT.name) + "&birthDate=" + MY_PATIENT.birthDate;
-  window.open(CLIENT + params, "_blank");
+  // Open client UI with opaque hint (base64-encoded patient context)
+  var hint = btoa(JSON.stringify(MY_PATIENT));
+  window.open(CLIENT + "?hint=" + encodeURIComponent(hint), "_blank");
   document.getElementById("btn-auth-full").textContent = "Onboarding...";
   document.getElementById("btn-auth-full").disabled = true;
   document.getElementById("btn-auth-quick").disabled = true;
@@ -819,7 +855,7 @@ async function doTrigger(mode) {
   }
 
   try {
-    await fetch(EHR + "/trigger-event", {
+    await apiFetch(EHR + "/trigger-event", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ patient: MY_PATIENT, encounterOptions: encounterOptions }),
@@ -828,6 +864,7 @@ async function doTrigger(mode) {
     btn.disabled = false;
     otherBtn.disabled = false;
   } catch (e) {
+    console.error("[dashboard] doTrigger failed:", e);
     btn.textContent = "Failed — retry";
     btn.disabled = false;
     otherBtn.disabled = false;

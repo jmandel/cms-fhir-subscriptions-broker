@@ -1,7 +1,7 @@
 // IAS Client handler — no server, just exports handle()
-import { resolve } from "path";
 import { createPermissionTicket, createClientAssertion } from "../shared/auth";
-import { serviceUrl, internalUrl, injectHtmlConfig } from "../config";
+import { serviceUrl, internalUrl, injectHtmlConfig, isStatic } from "../config";
+import type { HandlerContext } from "../shared/handler-context";
 
 const CLIENT_ID = "https://ias-client.example.com";
 
@@ -59,15 +59,23 @@ function pushEvent(session: SessionState | null, data: any) {
   }
 }
 
-const uiPath = resolve(import.meta.dir, "ui.html");
+async function readUiHtml(): Promise<string | null> {
+  if (isStatic) return null;
+  // Dynamic import to avoid referencing Bun/path in browser builds
+  const { resolve } = await import("path");
+  const uiPath = resolve(import.meta.dir, "ui.html");
+  return Bun.file(uiPath).text();
+}
 
-export async function handle(req: Request): Promise<Response> {
+export async function handle(req: Request, ctx?: HandlerContext): Promise<Response> {
+  const f = ctx?.fetch ?? globalThis.fetch;
   const url = new URL(req.url);
   const method = req.method;
 
   // Serve UI
   if (url.pathname === "/" && method === "GET") {
-    const raw = await Bun.file(uiPath).text();
+    const raw = await readUiHtml();
+    if (!raw) return new Response("Not found", { status: 404 });
     return new Response(injectHtmlConfig(raw, "client"), {
       headers: { "Content-Type": "text/html; charset=utf-8" },
     });
@@ -136,7 +144,7 @@ export async function handle(req: Request): Promise<Response> {
     session.permissionTicket = ticket;
     pushEvent(session, { type: "permission-ticket-issued", detail: `Permission ticket issued for ${body.patient.name}`, permissionTicket: ticket });
 
-    await doAuthAndSubscribe(session);
+    await doAuthAndSubscribe(session, f);
     return Response.json({ ok: true });
   }
 
@@ -155,7 +163,7 @@ export async function handle(req: Request): Promise<Response> {
     session.permissionTicket = ticket;
     pushEvent(session, { type: "permission-ticket-issued", detail: `Permission ticket issued for ${body.patient.name}`, permissionTicket: ticket });
 
-    await doAuthAndSubscribe(session);
+    await doAuthAndSubscribe(session, f);
     return Response.json({
       patient: session.patient,
       identity: session.identity,
@@ -209,7 +217,7 @@ export async function handle(req: Request): Promise<Response> {
       session.permissionTicket = ticket;
       pushEvent(session, { type: "permission-ticket-issued", detail: `Permission ticket issued for ${body.patient.name}`, permissionTicket: ticket });
 
-      await doAuthAndSubscribe(session);
+      await doAuthAndSubscribe(session, f);
     }, 3500);
 
     return Response.json({ ok: true, status: "auto-advancing" });
@@ -249,9 +257,9 @@ export async function handle(req: Request): Promise<Response> {
       pushEvent(session, { type: "fetching-encounter", detail: `Fetching ${focusRef} from Data Source...`, requestUrl: fetchUrl });
 
       try {
-        const tokenResp = await fetch(`${internalUrl("dataSource")}/auth/token`, { method: "POST" });
+        const tokenResp = await f(`${internalUrl("dataSource")}/auth/token`, { method: "POST" });
         const tokenData = await tokenResp.json() as any;
-        const encResp = await fetch(`${internalUrl("dataSource")}/fhir/${focusRef}`, {
+        const encResp = await f(`${internalUrl("dataSource")}/fhir/${focusRef}`, {
           headers: { Authorization: `Bearer ${tokenData.access_token}` },
         });
         const encounter = await encResp.json() as any;
@@ -271,7 +279,7 @@ export async function handle(req: Request): Promise<Response> {
   return Response.json({ error: "not found" }, { status: 404 });
 }
 
-async function doAuthAndSubscribe(session: SessionState) {
+async function doAuthAndSubscribe(session: SessionState, f: typeof globalThis.fetch) {
   try {
     if (!session.permissionTicket) {
       pushEvent(session, { type: "error", detail: "No permission ticket available" });
@@ -284,7 +292,7 @@ async function doAuthAndSubscribe(session: SessionState) {
     pushEvent(session, { type: "client-assertion-created", detail: "Client assertion created with embedded permission ticket", clientAssertion: assertion });
 
     // Authenticate with broker using SMART Backend Services flow
-    const tokenResp = await fetch(`${internalUrl("broker")}/auth/token`, {
+    const tokenResp = await f(`${internalUrl("broker")}/auth/token`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -305,7 +313,7 @@ async function doAuthAndSubscribe(session: SessionState) {
     pushEvent(session, { type: "authenticated", detail: `Authenticated to Broker — patient context: ${tokenData.patient}`, response: tokenData });
 
     // Subscribe using the brokerId learned from token response
-    const subResp = await fetch(`${internalUrl("broker")}/fhir/Subscription`, {
+    const subResp = await f(`${internalUrl("broker")}/fhir/Subscription`, {
       method: "POST",
       headers: { "Content-Type": "application/fhir+json", Authorization: `Bearer ${tokenData.access_token}` },
       body: JSON.stringify({

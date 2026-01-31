@@ -1,9 +1,9 @@
 // Data Source — Mercy EHR handler — no server, just exports handle()
-import { resolve } from "path";
 import { makeEncounter, makePatient, ENCOUNTER_CLASSES, ENCOUNTER_TYPES, REASON_CODES } from "../shared/types";
 import type { EncounterOptions } from "../shared/types";
 import { createMockToken } from "../shared/auth";
-import { serviceUrl, internalUrl, injectHtmlConfig } from "../config";
+import { serviceUrl, internalUrl, injectHtmlConfig, isStatic } from "../config";
+import type { HandlerContext } from "../shared/handler-context";
 
 // Dynamic patient registry (MPI): sourceId → { name, birthDate, resource }
 const patients: Map<string, { sourceId: string; name: string; birthDate: string; resource: any }> = new Map();
@@ -35,14 +35,21 @@ function randomHex(len: number): string {
   return out;
 }
 
-const uiPath = resolve(import.meta.dir, "ui.html");
+async function readUiHtml(): Promise<string | null> {
+  if (isStatic) return null;
+  const { resolve } = await import("path");
+  const uiPath = resolve(import.meta.dir, "ui.html");
+  return Bun.file(uiPath).text();
+}
 
-export async function handle(req: Request): Promise<Response> {
+export async function handle(req: Request, ctx?: HandlerContext): Promise<Response> {
+  const f = ctx?.fetch ?? globalThis.fetch;
   const url = new URL(req.url);
   const method = req.method;
 
   if (url.pathname === "/" && method === "GET") {
-    const raw = await Bun.file(uiPath).text();
+    const raw = await readUiHtml();
+    if (!raw) return new Response("Not found", { status: 404 });
     return new Response(injectHtmlConfig(raw, "dataSource"), {
       headers: { "Content-Type": "text/html; charset=utf-8" },
     });
@@ -171,7 +178,7 @@ export async function handle(req: Request): Promise<Response> {
 
     // Push to Broker via HTTP
     try {
-      const resp = await fetch(`${internalUrl("broker")}/internal/event`, {
+      const resp = await f(`${internalUrl("broker")}/internal/event`, {
         method: "POST",
         headers: { "Content-Type": "application/fhir+json" },
         body: JSON.stringify({
