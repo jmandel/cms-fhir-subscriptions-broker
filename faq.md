@@ -26,8 +26,6 @@ This is analogous to existing network-level decisions about MPI thresholds and R
 
 One potential pattern is **match-before-notify**: when the Broker receives an event from a provider for the first time for a given patient, it queries the provider (using existing network-to-provider API calls, such as an RLS-style demographic query) to confirm that the provider considers it a match before firing a notification. Once confirmed, the Broker caches the mapping and subsequent events from that provider for that patient don't need re-confirmation. This gives providers matching authority without adding latency after the initial confirmation, and can be built entirely on existing network infrastructure. This is a network-internal implementation detail — not specified by this protocol.
 
-For data retrieval, the Data Source always retains control — when a Client follows a `focus.reference` URL to fetch the actual resource, the Data Source applies its own authorization and matching before releasing data.
-
 ### Why does the Broker assign a `Patient.id` instead of using an existing identifier?
 
 Patients do not have a single stable identifier across organizations or networks. The brokered model does not require one. Instead:
@@ -73,4 +71,4 @@ Each notification includes an `eventNumber` that increments sequentially. If a C
 
 ### How does this relate to TEFCA?
 
-This spec defines a new capability — brokered FHIR Subscriptions — that any CMS-Aligned Network would adopt, including TEFCA QHINs. A Broker could be operated by a QHIN, by another type of CMS-Aligned Network, or by a network that participates in both. The spec is not specific to any particular network type.
+This spec defines a new capability — brokered FHIR Subscriptions — that any CMS-Aligned Network would adopt, including TEFCA QHINs. A Broker could be operated by a QHIN, or by another type of CMS-Aligned Network. The spec is not specific to any particular network type.
