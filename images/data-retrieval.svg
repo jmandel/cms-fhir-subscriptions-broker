@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 320">
+  <rect width="500" height="320" fill="white"/>
   <defs>
     <style>
       .actor-text { font-family: Inter, 'Segoe UI', system-ui, sans-serif; font-size: 13px; font-weight: 600; fill: #1e293b; text-anchor: middle; dominant-baseline: central; }

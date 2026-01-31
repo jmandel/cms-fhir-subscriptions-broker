@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 530" font-family="'Inter', 'Segoe UI', system-ui, sans-serif">
+  <rect width="820" height="530" fill="white"/>
   <style>
     .box { stroke-width: 1.5; }
     .label-primary { font-size: 13px; font-weight: 600; }
