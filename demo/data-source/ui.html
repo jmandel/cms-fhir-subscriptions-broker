@@ -69,6 +69,64 @@
   .btn-blue { background: #2471a3; color: #fff; }
   .btn-row { display: flex; gap: 8px; }
   .btn-row button { flex: 1; }
+
+  /* Mobile responsive styles */
+  @media (max-width: 768px) {
+    .grid2 {
+      grid-template-columns: 1fr;
+    }
+    .container {
+      padding: 0 12px;
+      margin: 16px auto;
+    }
+    header {
+      padding: 12px 16px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    header h1 {
+      font-size: 1.1rem;
+    }
+    .card {
+      padding: 12px;
+    }
+    table {
+      font-size: 0.75rem;
+    }
+    th, td {
+      padding: 4px 6px;
+    }
+    .stat {
+      font-size: 1.5rem;
+    }
+    .form-row {
+      flex-direction: column;
+    }
+  }
+
+  @media (max-width: 480px) {
+    header {
+      padding: 10px 12px;
+    }
+    .container {
+      padding: 0 8px;
+    }
+    .card {
+      padding: 10px;
+    }
+    table {
+      font-size: 0.7rem;
+      display: block;
+      overflow-x: auto;
+    }
+    th, td {
+      padding: 3px 4px;
+      white-space: nowrap;
+    }
+    .btn-row {
+      flex-direction: column;
+    }
+  }
 </style>
 </head>
 <body>
