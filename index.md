@@ -131,7 +131,7 @@ The Client sees a standard FHIR Subscriptions API. Behind it, the Broker may:
 - Configure HL7v2 ADT routing from Data Sources that use ADT feeds
 - Poll Data Sources that don't support push
 - Query a Record Locator Service (RLS) to discover relevant Data Sources
-- Register for events from peer CMS-Aligned Networks or TEFCA QHINs (see [FAQ](faq.md#can-a-client-receive-notifications-from-providers-in-a-different-network))
+- Register for events from peer CMS-Aligned Networks (see [FAQ](faq.md#can-a-client-receive-notifications-from-providers-in-a-different-network))
 - Convert events from HL7v2, CCDA, or proprietary formats into FHIR notifications
 
 None of this is visible to the Client. The Client creates a FHIR Subscription, receives FHIR notification bundles, and retrieves FHIR resources.
@@ -151,7 +151,6 @@ None of this is visible to the Client. The Client creates a FHIR Subscription, r
 | [US Core Patient Data Feed](http://hl7.org/fhir/us/core/patient-data-feed.html) | This architecture uses the Patient Data Feed topic and extends it for brokered scenarios |
 | [FHIR R4 Subscriptions Backport](http://hl7.org/fhir/uv/subscriptions-backport/) | Subscription resource structure and notification bundle format |
 | [SMART Backend Services](http://hl7.org/fhir/smart-app-launch/backend-services.html) | Basis for B2B authorization pattern |
-| TEFCA / QHIN Requirements | Network trust model; Brokers may be QHINs or other CMS-Aligned Networks |
 
 ### 2.4 Trust and Privacy Model
 
