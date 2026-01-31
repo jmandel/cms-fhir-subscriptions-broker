@@ -31,33 +31,34 @@
     --stat-label: #889;
   }
   
-  body.light-mode {
-    --bg-primary: #faf8f5;
-    --bg-header: #fdebd0;
-    --border-primary: #e67e22;
-    --text-primary: #333;
-    --text-secondary: #666;
-    --text-heading: #935116;
-    --text-subtitle: #b5651d;
-    --card-bg: rgba(0,0,0,0.02);
-    --card-border: rgba(230,126,34,0.3);
-    --table-header-border: rgba(0,0,0,0.1);
-    --table-cell-border: rgba(0,0,0,0.05);
-    --log-entry-border: rgba(0,0,0,0.08);
-    --details-summary: #b5651d;
-    --details-pre-bg: rgba(0,0,0,0.05);
-    --details-pre-color: #5a4520;
-    --jwt-viewer-bg: rgba(155,89,182,0.06);
-    --jwt-viewer-border: rgba(155,89,182,0.2);
-    --jwt-label: #7b4a9e;
-    --stat-color: #935116;
-    --stat-label: #666;
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg-primary: #faf8f5;
+      --bg-header: #fdebd0;
+      --border-primary: #e67e22;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --text-heading: #935116;
+      --text-subtitle: #b5651d;
+      --card-bg: rgba(0,0,0,0.02);
+      --card-border: rgba(230,126,34,0.3);
+      --table-header-border: rgba(0,0,0,0.1);
+      --table-cell-border: rgba(0,0,0,0.05);
+      --log-entry-border: rgba(0,0,0,0.08);
+      --details-summary: #b5651d;
+      --details-pre-bg: rgba(0,0,0,0.05);
+      --details-pre-color: #5a4520;
+      --jwt-viewer-bg: rgba(155,89,182,0.06);
+      --jwt-viewer-border: rgba(155,89,182,0.2);
+      --jwt-label: #7b4a9e;
+      --stat-color: #935116;
+      --stat-label: #666;
+    }
   }
   
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background: var(--bg-primary); color: var(--text-primary); min-height: 100vh;
-    transition: background 0.3s, color 0.3s;
   }
   header {
     background: var(--bg-header); padding: 16px 24px; border-bottom: 2px solid var(--border-primary);
@@ -65,19 +66,6 @@
   }
   header h1 { font-size: 1.3rem; color: var(--text-heading); }
   header .subtitle { font-size: 0.85rem; color: var(--text-subtitle); }
-  
-  /* Theme toggle */
-  .theme-toggle {
-    background: transparent;
-    border: 1px solid rgba(230,126,34,0.4);
-    color: var(--text-subtitle);
-    padding: 4px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    margin-left: auto;
-  }
-  .theme-toggle:hover { border-color: var(--border-primary); }
   
   .container { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -98,14 +86,20 @@
   }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   .log-time { color: #666; font-size: 0.72rem; float: right; }
-  body.light-mode .log-time { color: #888; }
+  @media (prefers-color-scheme: light) {
+    .log-time { color: #888; }
+  }
   .log-type { font-weight: 600; color: var(--text-heading); font-size: 0.75rem; text-transform: uppercase; }
   .log-type.match-type { color: #5dade2; }
   .log-type.ticket-type { color: #9b59b6; }
-  body.light-mode .log-type.match-type { color: #1a5276; }
-  body.light-mode .log-type.ticket-type { color: #7b4a9e; }
+  @media (prefers-color-scheme: light) {
+    .log-type.match-type { color: #1a5276; }
+    .log-type.ticket-type { color: #7b4a9e; }
+  }
   .log-detail { color: #bbb; }
-  body.light-mode .log-detail { color: #555; }
+  @media (prefers-color-scheme: light) {
+    .log-detail { color: #555; }
+  }
   #log-container { max-height: 500px; overflow-y: auto; }
   .stat { font-size: 2rem; font-weight: 700; color: var(--stat-color); }
   .stat-label { font-size: 0.8rem; color: var(--stat-label); }
@@ -173,13 +167,34 @@
       white-space: nowrap;
     }
   }
+
+  /* Footer */
+  .app-footer {
+    background: var(--bg-header);
+    border-top: 1px solid var(--border-primary);
+    padding: 12px 24px;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+  .app-footer a {
+    color: var(--text-subtitle);
+    text-decoration: none;
+    margin: 0 8px;
+  }
+  .app-footer a:hover {
+    color: var(--text-heading);
+    text-decoration: underline;
+  }
+  .app-footer .separator {
+    color: var(--border-primary);
+  }
 </style>
 </head>
 <body>
 <header>
   <h1>Subscriptions Broker</h1>
   <span class="subtitle">Admin Dashboard — System-Wide View</span>
-  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">☀️ Light</button>
 </header>
 <div class="container">
   <div class="grid2">
@@ -318,26 +333,12 @@ es.onmessage = function(e) {
     }
   } catch(err) {}
 };
-
-// --- Theme toggle ---
-function toggleTheme() {
-  var body = document.body;
-  var btn = document.querySelector('.theme-toggle');
-  body.classList.toggle('light-mode');
-  var isLight = body.classList.contains('light-mode');
-  btn.innerHTML = isLight ? '🌙 Dark' : '☀️ Light';
-  localStorage.setItem('theme', isLight ? 'light' : 'dark');
-}
-
-// Initialize theme from localStorage
-(function initTheme() {
-  var savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'light') {
-    document.body.classList.add('light-mode');
-    var btn = document.querySelector('.theme-toggle');
-    if (btn) btn.innerHTML = '🌙 Dark';
-  }
-})();
 </script>
+
+<footer class="app-footer">
+  <a href="https://github.com/jmandel/cms-fhir-subscriptions-broker" target="_blank">📄 Project Spec on GitHub</a>
+  <span class="separator">|</span>
+  <a href="https://www.cms.gov/priorities/key-initiatives/interoperability" target="_blank">🏥 CMS Health Tech Ecosystem</a>
+</footer>
 </body>
 </html>
