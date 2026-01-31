@@ -411,7 +411,7 @@ function pollUntilReady() {
         }
 
         // Timeout after maxPolls
-        if (pollCount >= maxPolls && !s.subscriptions?.length) {
+        if (pollCount >= maxPolls && (!s.subscriptions || !s.subscriptions.length)) {
           clearInterval(poll);
           document.getElementById("auto-status").innerHTML =
             '<span style="color:#e74c3c;">✗ Timed out waiting for authentication</span>';
