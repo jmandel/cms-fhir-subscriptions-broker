@@ -8,9 +8,9 @@ Companion to the [main specification](index.md) and [end-to-end example](e2e-ias
 
 Provider endpoints don't support FHIR Subscriptions today. Even where FHIR APIs exist, they often require provider-portal-specific registration and patient portal accounts. And registering with individual providers still doesn't give apps insight into when a patient is seen somewhere new. The brokered model lets networks meet the CMS July 4, 2026 requirement using whatever internal integration mechanisms their providers already support (HL7v2 ADT, polling, proprietary feeds), while exposing a single standard FHIR API to clients.
 
-### Don't notifications reveal PHI even with `id-only` payloads?
+### Do notifications reveal PHI?
 
-Yes. Even an `id-only` notification reveals that a patient was seen at a particular site of care — that is PHI. This is not unique to the brokered model; it is inherent in any notification system, and it is the same category of information that networks already handle when operating Record Locator Services (RLS). Networks that maintain an RLS already know where patients have received care and share that information with authorized parties. The Subscriptions Broker adds a real-time delivery mechanism on top of this existing trust model.
+Even an `id-only` notification with no PHI in the message reveals to the receiving client that a patient was seen at a particular site of care. This is inherent in any encounter notification system, and it is the same category of information that networks already handle when operating Record Locator Services (RLS). Networks that maintain an RLS or broker RLS responses already know where patients have received care and pass that information to authorized parties. The Subscriptions Broker adds a real-time delivery mechanism on top of this existing trust model.
 
 ### What about patient matching? EHRs manage their own matching thresholds today.
 
