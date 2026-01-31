@@ -6,7 +6,7 @@ Companion to the [main specification](index.md) and [end-to-end example](e2e-ias
 
 ### Why not require FHIR Subscriptions at every EHR?
 
-Most provider endpoints don't support FHIR Subscriptions today, and many don't expose FHIR APIs at all. Even where FHIR APIs exist, they require provider-portal-specific registration — there's no trust framework that lets an application register at scale. The brokered model lets networks meet the CMS July 4, 2026 requirement using whatever internal integration mechanisms their providers already support (HL7v2 ADT, polling, proprietary feeds), while exposing a single standard FHIR API to clients.
+Provider endpoints don't support FHIR Subscriptions today. Even where FHIR APIs exist, they often require provider-portal-specific registration and patient portal accounts. And registering with individual providers still doesn't give apps insight into when a patient is seen somewhere new. The brokered model lets networks meet the CMS July 4, 2026 requirement using whatever internal integration mechanisms their providers already support (HL7v2 ADT, polling, proprietary feeds), while exposing a single standard FHIR API to clients.
 
 ### Don't notifications reveal PHI even with `id-only` payloads?
 
