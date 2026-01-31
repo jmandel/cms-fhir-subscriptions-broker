@@ -6,54 +6,115 @@
 <title>Subscriptions Broker &mdash; Admin</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  /* Theme variables */
+  :root {
+    --bg-primary: #1a1000;
+    --bg-header: #4a2f10;
+    --border-primary: #e67e22;
+    --text-primary: #e0e0e0;
+    --text-secondary: #8899aa;
+    --text-heading: #f0b27a;
+    --text-subtitle: #e67e22;
+    --card-bg: rgba(255,255,255,0.05);
+    --card-border: rgba(230,126,34,0.3);
+    --table-header-border: rgba(255,255,255,0.1);
+    --table-cell-border: rgba(255,255,255,0.05);
+    --log-entry-border: rgba(255,255,255,0.05);
+    --details-summary: #e67e22;
+    --details-pre-bg: rgba(0,0,0,0.4);
+    --details-pre-color: #ddb;
+    --jwt-viewer-bg: rgba(155,89,182,0.08);
+    --jwt-viewer-border: rgba(155,89,182,0.3);
+    --jwt-label: #9b59b6;
+    --stat-color: #f0b27a;
+    --stat-label: #889;
+  }
+  
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg-primary: #faf8f5;
+      --bg-header: #fdebd0;
+      --border-primary: #e67e22;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --text-heading: #935116;
+      --text-subtitle: #b5651d;
+      --card-bg: rgba(0,0,0,0.02);
+      --card-border: rgba(230,126,34,0.3);
+      --table-header-border: rgba(0,0,0,0.1);
+      --table-cell-border: rgba(0,0,0,0.05);
+      --log-entry-border: rgba(0,0,0,0.08);
+      --details-summary: #b5651d;
+      --details-pre-bg: rgba(0,0,0,0.05);
+      --details-pre-color: #5a4520;
+      --jwt-viewer-bg: rgba(155,89,182,0.06);
+      --jwt-viewer-border: rgba(155,89,182,0.2);
+      --jwt-label: #7b4a9e;
+      --stat-color: #935116;
+      --stat-label: #666;
+    }
+  }
+  
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #1a1000; color: #e0e0e0; min-height: 100vh;
+    background: var(--bg-primary); color: var(--text-primary); min-height: 100vh;
   }
   header {
-    background: #4a2f10; padding: 16px 24px; border-bottom: 2px solid #e67e22;
+    background: var(--bg-header); padding: 16px 24px; border-bottom: 2px solid var(--border-primary);
     display: flex; align-items: center; gap: 16px;
   }
-  header h1 { font-size: 1.3rem; color: #f0b27a; }
-  header .subtitle { font-size: 0.85rem; color: #e67e22; }
+  header h1 { font-size: 1.3rem; color: var(--text-heading); }
+  header .subtitle { font-size: 0.85rem; color: var(--text-subtitle); }
+  
   .container { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .card {
-    background: rgba(255,255,255,0.05); border: 1px solid rgba(230,126,34,0.3);
+    background: var(--card-bg); border: 1px solid var(--card-border);
     border-radius: 8px; padding: 16px; margin-bottom: 16px;
   }
-  .card h2 { font-size: 0.85rem; margin-bottom: 12px; color: #f0b27a; text-transform: uppercase; letter-spacing: 0.5px; }
+  .card h2 { font-size: 0.85rem; margin-bottom: 12px; color: var(--text-heading); text-transform: uppercase; letter-spacing: 0.5px; }
   table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-  th { text-align: left; color: #8899aa; font-size: 0.72rem; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-  td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); font-family: monospace; font-size: 0.78rem; }
+  th { text-align: left; color: var(--text-secondary); font-size: 0.72rem; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--table-header-border); }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--table-cell-border); font-family: monospace; font-size: 0.78rem; }
   .tag { padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
   .tag-active { background: rgba(39,174,96,0.2); color: #2ecc71; }
   .tag-match { background: rgba(52,152,219,0.2); color: #5dade2; }
   .log-entry {
-    padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding: 6px 8px; border-bottom: 1px solid var(--log-entry-border);
     font-size: 0.82rem; animation: fadeIn 0.3s;
   }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   .log-time { color: #666; font-size: 0.72rem; float: right; }
-  .log-type { font-weight: 600; color: #f0b27a; font-size: 0.75rem; text-transform: uppercase; }
+  @media (prefers-color-scheme: light) {
+    .log-time { color: #888; }
+  }
+  .log-type { font-weight: 600; color: var(--text-heading); font-size: 0.75rem; text-transform: uppercase; }
   .log-type.match-type { color: #5dade2; }
   .log-type.ticket-type { color: #9b59b6; }
+  @media (prefers-color-scheme: light) {
+    .log-type.match-type { color: #1a5276; }
+    .log-type.ticket-type { color: #7b4a9e; }
+  }
   .log-detail { color: #bbb; }
+  @media (prefers-color-scheme: light) {
+    .log-detail { color: #555; }
+  }
   #log-container { max-height: 500px; overflow-y: auto; }
-  .stat { font-size: 2rem; font-weight: 700; color: #f0b27a; }
-  .stat-label { font-size: 0.8rem; color: #889; }
-  details summary { cursor: pointer; font-size: 0.8rem; color: #e67e22; }
+  .stat { font-size: 2rem; font-weight: 700; color: var(--stat-color); }
+  .stat-label { font-size: 0.8rem; color: var(--stat-label); }
+  details summary { cursor: pointer; font-size: 0.8rem; color: var(--details-summary); }
   details pre {
-    background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;
-    font-size: 0.72rem; overflow-x: auto; margin-top: 4px; color: #ddb;
+    background: var(--details-pre-bg); padding: 8px; border-radius: 4px;
+    font-size: 0.72rem; overflow-x: auto; margin-top: 4px; color: var(--details-pre-color);
     max-height: 200px; overflow-y: auto;
   }
   .jwt-viewer {
-    background: rgba(155,89,182,0.08); border: 1px solid rgba(155,89,182,0.3);
+    background: var(--jwt-viewer-bg); border: 1px solid var(--jwt-viewer-border);
     border-radius: 6px; padding: 8px; margin-top: 4px; font-size: 0.78rem;
   }
   .jwt-section { margin-bottom: 4px; }
-  .jwt-label { color: #9b59b6; font-weight: 600; font-size: 0.72rem; text-transform: uppercase; }
+  .jwt-label { color: var(--jwt-label); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; }
 
   /* Mobile responsive styles */
   @media (max-width: 768px) {
@@ -105,6 +166,28 @@
       padding: 3px 4px;
       white-space: nowrap;
     }
+  }
+
+  /* Footer */
+  .app-footer {
+    background: var(--bg-header);
+    border-top: 1px solid var(--border-primary);
+    padding: 12px 24px;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+  .app-footer a {
+    color: var(--text-subtitle);
+    text-decoration: none;
+    margin: 0 8px;
+  }
+  .app-footer a:hover {
+    color: var(--text-heading);
+    text-decoration: underline;
+  }
+  .app-footer .separator {
+    color: var(--border-primary);
   }
 </style>
 </head>
@@ -251,5 +334,11 @@ es.onmessage = function(e) {
   } catch(err) {}
 };
 </script>
+
+<footer class="app-footer">
+  <a href="https://github.com/jmandel/cms-fhir-subscriptions-broker" target="_blank">📄 Project Spec on GitHub</a>
+  <span class="separator">|</span>
+  <a href="https://www.cms.gov/priorities/key-initiatives/interoperability" target="_blank">🏥 CMS Health Tech Ecosystem</a>
+</footer>
 </body>
 </html>
