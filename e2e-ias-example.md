@@ -2,7 +2,7 @@
 
 This walkthrough shows every step when a patient using an Individual Access Services (IAS) app receives a notification about an out-of-state ED visit — from app setup through data retrieval.
 
-**Scenario**: Jane is a "snowbird" — she lives in Minnesota but spends winters in Arizona. She's enrolled in an ACO-affiliated care management program at home. While in Arizona, she visits an ED for chest pain. Her IAS app receives the notification in real-time, allowing her Minnesota care team to follow up promptly despite the visit happening 1,500 miles away.
+**Scenario**: Jane is a "snowbird" — she lives in Minnesota but spends winters in Arizona. While in Arizona, she visits an ED for chest pain. Her IAS app receives the notification in real-time, keeping her informed about her care no matter where she travels.
 
 Each step is labeled:
 
@@ -19,7 +19,7 @@ Each step is labeled:
 | Actor | Example |
 |-------|---------|
 | **Patient** | Jane Doe (Minnesota resident, winters in Arizona) |
-| **IAS App** | A patient-facing mobile health app (the Client), connected to Jane's ACO care management program |
+| **IAS App** | A patient-facing mobile health app (the Client) |
 | **Broker** | CMS-Aligned Network's Subscriptions Broker |
 | **Identity Service** | CLEAR or ID.me (Kantara-certified IAL2) |
 | **Data Source** | Mercy Hospital EHR (Phoenix, AZ) |
@@ -339,32 +339,11 @@ Content-Type: application/fhir+json
 
 Jane's IAS app now shows: "New ED visit at Mercy Hospital (Phoenix, AZ) — started 2:30 PM today."
 
-Because Jane's IAS app is connected to her Minnesota ACO's care management program, her care team is automatically notified. A care coordinator reviews the ED visit and schedules a follow-up telehealth appointment with Jane's primary care physician for the next morning — despite Jane being 1,500 miles from home. This is the power of real-time, network-wide notifications: care coordination that works regardless of where the patient happens to be.
+**Looking ahead** (beyond the scope of this walkthrough, showing future capabilities): Jane taps the notification to retrieve full clinical details—the ED note, lab results, and discharge instructions. From the app, she schedules a follow-up telehealth visit with her Minnesota PCP.
 
 ---
 
 ## Summary
-
-```
-            SPECIFIED                          NETWORK-INTERNAL
-         (this protocol)                 (below the abstraction barrier)
-                │                                     │
- ┌──────────────┼──────────────┐   ┌──────────────────┼──────────────────┐
- │              │              │   │                   │                  │
- │  ┌───────────▼──────────┐   │   │   ┌───────────────▼──────────────┐  │
- │  │ 5-6.  Get token      │   │   │   │ 9.  Query RLS              │  │
- │  │ 7-8.  Create sub     │   │   │   │ 10. Set up ADT/FHIR/poll   │  │
- │  │ 14-15.Send notif     │   │   │   │ 12. Receive ADT event      │  │
- │  │ 16-18.Fetch from     │   │   │   │ 13. Match patient + sub    │  │
- │  │       Broker         │   │   │   │                            │  │
- │  └──────────────────────┘   │   │   └────────────────────────────┘  │
- │                             │   │                                    │
- │  Standard FHIR APIs         │   │  HL7v2 ADT, FHIR Subscriptions,  │
- │  Any conformant client      │   │  polling, RLS, peer network       │
- │  can participate             │   │  routing — network's choice       │
- │                             │   │                                    │
- └─────────────────────────────┘   └────────────────────────────────────┘
-```
 
 | Step | Phase | Label | Description |
 |------|-------|-------|-------------|

@@ -87,9 +87,9 @@ This does not extend to scenarios requiring explicit, granular consent:
 
 These scenarios require a standardized mechanism for conveying consent context alongside identity. The community is exploring portable, cryptographically verifiable artifacts (e.g., "SMART Permission Tickets") that could encode identity, consent, and purpose of use. These are not required for this architecture but may inform future production profiles. The CMS Patient Preferences and Consent Workgroup is also exploring approaches.
 
-Note that Data Sources may not broadcast sensitive events to the network at all—just as they selectively respond to RLS queries today based on their own policies. This architecture does not prescribe source-level filtering rules; it assumes Data Sources apply appropriate policies before events reach the Broker.
+Note that Data Sources may not broadcast sensitive events to the network at all—just as they selectively respond to RLS queries today based on their own policies. Networks and Brokers may also apply policy controls (e.g., suppressing or redacting fields) depending on participant agreements and applicable law; this architecture does not standardize those rules.
 
-For individual access, disclosure is generally within the patient's right regardless of jurisdiction. For delegated access or B2B scenarios, networks and Data Sources must account for applicable state law.
+For individual access, disclosure is generally within the patient's right regardless of jurisdiction. For delegated access or B2B scenarios, networks and Data Sources must account for applicable state law. As always, disclosures remain subject to applicable federal and state law and data holder policy.
 
 ### Can a Client receive notifications from providers in a different network?
 
@@ -113,10 +113,10 @@ The Broker is operated by (or on behalf of) a CMS-Aligned Network. This is the n
 - Encounter notifications can be viewed as "streaming RLS"—real-time delivery of the same category of information
 - Full coverage requires participation agreements with all network members, which only the network can enforce
 
-A network may operate the Broker directly or contract with a technical partner, but the network provides the trust framework and ensures complete participation. A third party without network-level authority would be unlikely to achieve full coverage.
+A network may operate the Broker directly or contract with a technical partner, but the network provides the trust framework and ensures complete participation. A third party without network-level authority would be unlikely to achieve full coverage. A QHIN could offer this function as part of operating a CMS-Aligned Network, but the key requirement is network-level authority to ensure coverage and participation.
 
 ### Does this require TEFCA?
 
-No. This spec is designed for CMS-Aligned Networks broadly and does not require participation in any specific national network.
+No. This architecture is compatible with TEFCA but not dependent on it. It is designed for CMS-Aligned Networks broadly and does not require participation in any specific national network.
 
 TEFCA QHINs are one example of a multi-party network trust framework where a Broker capability could be deployed, but adoption of this architecture is not contingent on TEFCA.
