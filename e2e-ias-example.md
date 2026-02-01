@@ -79,7 +79,7 @@ The Broker:
   "access_token": "eyJ...",
   "token_type": "bearer",
   "expires_in": 3600,
-  "scope": "system/Subscription.crud",
+  "scope": "system/Subscription.crud system/Encounter.r",
   // SMART on FHIR patient context — the broker-scoped Patient.id
   // Use this value in subscription filter criteria (Step 7)
   "patient": "broker-123"
@@ -123,6 +123,9 @@ Content-Type: application/fhir+json
     "type": "rest-hook",
     "endpoint": "https://ias-app.example.com/notifications",
     "payload": "application/fhir+json",
+    "header": [
+      "X-Subscription-Token: {shared_secret}"
+    ],
     "_payload": {
       "extension": [
         {
@@ -219,6 +222,7 @@ The Broker converts the event into a standard FHIR notification bundle and deliv
 ```http
 POST https://ias-app.example.com/notifications
 Content-Type: application/fhir+json
+X-Subscription-Token: {shared_secret}
 ```
 
 ```json
@@ -239,7 +243,7 @@ Content-Type: application/fhir+json
             "eventNumber": 1,
             "timestamp": "2026-03-15T14:30:15Z",
             "focus": {
-              "reference": "https://mercy-hospital.example.org/fhir/Encounter/enc-98765",
+              "reference": "https://broker.example.org/fhir/Encounter/enc-98765",
               "type": "Encounter"
             }
           }
@@ -254,7 +258,7 @@ Content-Type: application/fhir+json
 }
 ```
 
-Note: `focus.reference` is an absolute URL pointing to Mercy Hospital's FHIR endpoint — the data lives at the source.
+Note: In the baseline Proxy Retrieval Mode, `focus.reference` points to the Broker, which proxies/caches the Encounter content so the IAS app does not need per-provider registrations.
 
 ### Step 15 — IAS app acknowledges
 > **Specified**
@@ -265,63 +269,29 @@ HTTP/1.1 200 OK
 
 ---
 
-## Phase 7: Data Retrieval
+## Phase 7: Data Retrieval (Proxy Retrieval Mode)
 
 ### Step 16 — IAS app parses notification
 > **Specified** (client-side processing)
 
-The IAS app extracts the focus reference URL and determines it needs to connect to `https://mercy-hospital.example.org/fhir/`.
+The IAS app extracts the focus reference URL:
 
 ```
-focus.reference = "https://mercy-hospital.example.org/fhir/Encounter/enc-98765"
-                   └──────────────────────────────────┘ └─────────────────┘
-                              Base endpoint                Resource path
+focus.reference = "https://broker.example.org/fhir/Encounter/enc-98765"
 ```
 
-This is a Data Source endpoint (not the Broker), so the IAS app needs to authenticate there.
+This is a Broker URL, so the IAS app can retrieve the Encounter from the Broker using its existing Broker-issued access token.
 
-### Step 17 — IAS app requests access token from Data Source
-> **Specified**
-
-The IAS app uses the same Backend Services-style pattern — presenting Jane's identity and consent credentials to Mercy Hospital's token endpoint:
-
-```http
-POST https://mercy-hospital.example.org/auth/token
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=client_credentials
-&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
-&client_assertion={signed_jwt}
-&identity_assertion={ial2_credential}
-&purpose=individual-access
-```
-
-### Step 18 — Data Source issues access token
-> **Specified**
-
-Mercy Hospital validates the identity and consent credentials and issues an access token scoped to Jane's data at this organization.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "access_token": "eyJ...",
-  "token_type": "bearer",
-  "expires_in": 300
-}
-```
-
-### Step 19 — IAS app fetches Encounter resource
+### Step 17 — IAS app fetches Encounter resource from Broker
 > **Specified**
 
 ```http
-GET https://mercy-hospital.example.org/fhir/Encounter/enc-98765
+GET https://broker.example.org/fhir/Encounter/enc-98765
 Authorization: Bearer eyJ...
 Accept: application/fhir+json
 ```
 
-### Step 20 — Data Source returns Encounter
+### Step 18 — Broker returns Encounter
 > **Specified**
 
 ```http
@@ -349,7 +319,7 @@ Content-Type: application/fhir+json
     }
   ],
   "subject": {
-    "reference": "Patient/mercy-pat-5678"
+    "reference": "Patient/broker-123"
   },
   "period": {
     "start": "2026-03-15T14:30:00Z"
@@ -377,8 +347,8 @@ Jane's IAS app now shows: "New ED visit at Mercy Hospital — started 2:30 PM to
  │  │ 5-6.  Get token      │   │   │   │ 9.  Query RLS              │  │
  │  │ 7-8.  Create sub     │   │   │   │ 10. Set up ADT/FHIR/poll   │  │
  │  │ 14-15.Send notif     │   │   │   │ 12. Receive ADT event      │  │
- │  │ 16.   Parse refs     │   │   │   │ 13. Match patient + sub    │  │
- │  │ 17-20.Fetch data     │   │   │   │                            │  │
+ │  │ 16-18.Fetch from     │   │   │   │ 13. Match patient + sub    │  │
+ │  │       Broker         │   │   │   │                            │  │
  │  └──────────────────────┘   │   │   └────────────────────────────┘  │
  │                             │   │                                    │
  │  Standard FHIR APIs         │   │  HL7v2 ADT, FHIR Subscriptions,  │
@@ -405,8 +375,6 @@ Jane's IAS app now shows: "New ED visit at Mercy Hospital — started 2:30 PM to
 | 13 | Event | **Network-Internal** | Broker resolves patient identity, matches subscription |
 | 14 | Notify | **Specified** | Broker sends FHIR notification bundle to IAS app |
 | 15 | Notify | **Specified** | IAS app acknowledges |
-| 16 | Retrieve | **Specified** | IAS app parses `focus.reference` URL |
-| 17 | Retrieve | **Specified** | IAS app requests token from Data Source |
-| 18 | Retrieve | **Specified** | Data Source issues token |
-| 19 | Retrieve | **Specified** | IAS app fetches Encounter |
-| 20 | Retrieve | **Specified** | Data Source returns US Core Encounter |
+| 16 | Retrieve | **Specified** | IAS app parses `focus.reference` URL (points to Broker) |
+| 17 | Retrieve | **Specified** | IAS app fetches Encounter from Broker |
+| 18 | Retrieve | **Specified** | Broker returns US Core Encounter |

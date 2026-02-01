@@ -155,7 +155,11 @@ None of this is visible to the Client. The Client creates a FHIR Subscription, r
 | [FHIR R4 Subscriptions Backport](http://hl7.org/fhir/uv/subscriptions-backport/) | Subscription resource structure and notification bundle format |
 | [SMART Backend Services](http://hl7.org/fhir/smart-app-launch/backend-services.html) | Basis for B2B authorization pattern |
 
-### 2.4 Trust and Privacy Model
+### 2.4 Appointment Notifications
+
+To keep the client-facing contract simple and compatible with existing profiles, appointment notifications are represented as **planned Encounters** conformant to the **US Core Encounter** profile: an appointment is a future-dated Encounter (e.g., `status="planned"` with `period.start` in the future). Networks may map from scheduling systems internally; Clients consume standard US Core Encounter resources.
+
+### 2.5 Trust and Privacy Model
 
 The Broker operates within the same network trust framework that CMS-Aligned Networks already use for services like Record Locator Services — it does not expand the categories of PHI the network handles or the legal basis under which it operates. See the [FAQ](faq.md) for details on trust, patient matching, and notification privacy.
 
@@ -203,7 +207,7 @@ This **will not scale** to scenarios that require explicit, granular consent:
 - Minors and guardians with age-dependent rules
 - Substance use disorder or behavioral health data with 42 CFR Part 2 restrictions
 
-These scenarios require a standardized mechanism for conveying consent context alongside identity in token requests. The [Argonaut Project](https://confluence.hl7.org/spaces/AP/pages/86969961/Argonaut+Project+Home) is considering a 2026 initiative on **"SMART Permission Tickets"** that could provide a technical basis for this — encoding identity, consent, and purpose of use into a verifiable token that can propagate from Broker to Data Source. The CMS Patient Preferences and Consent Workgroup is also exploring how consent information should be conveyed in network transactions.
+These scenarios require a standardized mechanism for conveying consent context alongside identity in token requests. The community is exploring portable, cryptographically verifiable artifacts (e.g., "SMART Permission Tickets") that could encode identity, consent, and purpose of use in a way that propagates across components. These are **not required** for this architecture but may inform future production profiles. The CMS Patient Preferences and Consent Workgroup is also exploring how consent information should be conveyed in network transactions.
 
 The specific format for authorization requests is **out of scope for this document** but must be pinned down for production use. See [FAQ](faq.md#why-is-implicit-consent-acceptable-for-a-pilot-but-not-at-scale) for further discussion.
 
@@ -216,7 +220,8 @@ The Broker's token response follows [SMART on FHIR](http://hl7.org/fhir/smart-ap
   "access_token": "eyJ...",
   "token_type": "bearer",
   "expires_in": 3600,
-  "scope": "system/Subscription.crud",
+  // Subscription management + Encounter read for proxy retrieval
+  "scope": "system/Subscription.crud system/Encounter.r",
   "patient": "broker-123"  // Broker-scoped Patient.id for use in filters
 }
 ```
@@ -358,6 +363,12 @@ Content-Type: application/fhir+json
     // Where the Broker should POST notifications
     "endpoint": "https://client.example.org/fhir/notifications",
     "payload": "application/fhir+json",
+
+    // Optional but recommended: shared secret header for validation
+    "header": [
+      "X-Subscription-Token: {shared_secret}"
+    ],
+
     "_payload": {
       "extension": [{
         "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-payload-content",
@@ -373,7 +384,13 @@ Content-Type: application/fhir+json
 
 - `patient=Patient/broker-123` uses the **broker-assigned `Patient.id`** from the token response — not a cross-organization identifier
 - The `trigger=feed-event` filter uses the US Core Patient Data Feed topic's trigger definition
-- `id-only` payload means notifications contain references, not inline resources (see [FAQ](faq.md#dont-notifications-reveal-phi-even-with-id-only-payloads) on PHI implications)
+- `id-only` payload means notifications contain references, not inline resources (see [FAQ](faq.md#do-notifications-reveal-phi) on PHI implications)
+
+**Security requirements:**
+
+- For `rest-hook` delivery, the Broker **SHALL** require an `https://` endpoint and **SHALL NOT** deliver notifications to `http://` endpoints.
+- The Client **MAY** include one or more HTTP headers using `Subscription.channel.header`. If present, the Broker **SHALL** include these headers in every notification request.
+- If the Client uses a shared secret header (recommended), it **SHOULD** be unpredictable (e.g., a UUID or 32-character hex string) and the Client **SHOULD** reject notifications that do not present the expected value.
 
 ### 5.2 Broker Processes the Subscription (Internal)
 
@@ -477,6 +494,14 @@ arrow from R1S to R1E dashed color 0x2E86C1 "200 OK" below
 
 </details>
 
+The Broker delivers the notification over HTTPS, including any headers the Client specified:
+
+```http
+POST https://client.example.org/fhir/notifications
+Content-Type: application/fhir+json
+X-Subscription-Token: {shared_secret}
+```
+
 ```js
 {
   "resourceType": "Bundle",
@@ -493,9 +518,9 @@ arrow from R1S to R1E dashed color 0x2E86C1 "200 OK" below
         "eventNumber": 1,
         "timestamp": "2026-03-15T14:30:15Z",
         "focus": {
-          // Absolute URL tells the Client where to fetch this resource.
-          // Here it points to the Data Source — but could equally be a Broker URL if the Broker proxies data.
-          "reference": "https://mercy-hospital.example.org/fhir/Encounter/enc-98765",
+          // Baseline: Broker Proxy Retrieval mode
+          // (avoids per-provider client registrations during initial deployments)
+          "reference": "https://broker.example.org/fhir/Encounter/enc-98765",
           "type": "Encounter"
         }
       }],
@@ -511,105 +536,39 @@ arrow from R1S to R1E dashed color 0x2E86C1 "200 OK" below
 
 **Key points:**
 
-- `focus.reference` is an **absolute URL** — the Client uses this to determine where to fetch the resource
+- `focus.reference` is an **absolute URL** — the Client follows it to retrieve the resource.
+- In the baseline deployment model, `focus.reference` **points to the Broker** (proxy/cached retrieval).
+- A Broker **MAY** return `focus.reference` values that point to Data Sources when network-wide client registration is feasible (see Section 5.4).
 - `subscription.reference` points to the Broker (where the Client created it)
 - `eventNumber` allows the Client to detect missed notifications (see [FAQ](faq.md#what-happens-if-the-client-misses-a-notification))
 
+### 5.3.1 Delivery Semantics and Catch-up
+
+Notification delivery is **best effort**: transient network failures, client downtime, and duplicate deliveries can occur. Clients **MUST** be idempotent and treat notifications as **at-least-once** delivery.
+
+Each `subscription-notification` includes a monotonically increasing `eventNumber`. Clients **SHOULD** detect gaps and call the Subscription `$events` operation to catch up. Clients **SHOULD** also poll `$events` on startup/resume and periodically (on the order of **weekly**) even when no gaps are detected. Brokers **SHOULD** retain events for catch-up for at least **14 days**.
+
 ### 5.4 Client Retrieves Data
 
-The `focus.reference` URL tells the Client where to retrieve the resource:
+This specification supports two data retrieval modes. **Proxy Retrieval Mode is the baseline expectation for initial deployments**, since provider-by-provider client registrations are operationally unworkable at national scale.
 
-| URL Base | Meaning | Client Action |
-|----------|---------|---------------|
-| Broker's endpoint | Broker is proxying/caching the data | Fetch from Broker (already authenticated) |
-| Data Source's endpoint | Data lives at source | Connect to Data Source, authenticate, fetch |
+**Proxy Retrieval Mode (baseline):**
 
-The Client follows the `focus.reference` URL — which may point to the Broker or to a Data Source. Either way, the Client uses the same Backend Services-style authorization pattern to obtain an access token without user interaction.
+- The Broker **SHALL** use `focus.reference` URLs rooted at the Broker.
+- The Client retrieves the resource from the Broker using its existing Broker-issued access token.
 
-![Data Retrieval](images/data-retrieval.svg)
+**Direct Retrieval Mode (optional, future-looking):**
 
-<details>
-<summary>Diagram source (Pikchr)</summary>
+- The Broker **MAY** use `focus.reference` URLs rooted at a Data Source.
+- This mode is appropriate only when a Client can be registered **across the full network** via dynamic registration (e.g., SMART/UDAP) or via a **single network-level registration step**, rather than requiring manual registration at each provider.
 
-```pikchr
-leftmargin = 0.2in
-rightmargin = 0.2in
-down
+| `focus.reference` URL Base | Meaning | Client Action |
+|----------------------------|---------|---------------|
+| Broker's endpoint | Proxy Retrieval Mode | Fetch from Broker (already authenticated) |
+| Data Source endpoint | Direct Retrieval Mode (optional) | Discover auth + obtain token + fetch from Data Source |
 
-# ── Actor boxes ─────────────────────────────────────────────
-CL: box "Client" bold width 1.3in height 0.45in \
-    fill 0xD6EAF8 rad 0.06in
-move to CL.e; right
-DS: box "FHIR Server" bold "(Broker or Data Source)" \
-    width 1.7in height 0.55in \
-    fill 0xD5F5E3 rad 0.06in \
-    with .w at 2.8in right of CL.e
-
-# ── Lifelines ───────────────────────────────────────────────
-LCL: line from CL.s down 4.5in dashed color gray
-LDS: line from DS.s down 4.5in dashed color gray
-
-# ── Note: focus.reference from notification ─────────────────
-move to CL.s; move down 0.3in
-text "follow focus.reference URL →" italic color gray \
-  with .e at 0.15in left of last move.end
-
-# ── Step 1: Token Request ──────────────────────────────────
-move to CL.s; move down 0.9in
-T1S: dot invisible
-move to DS.s; move down 0.9in
-T1E: dot invisible
-arrow from T1S.e to T1E.w thick color 0x8E44AD
-text "Token request" above italic \
-  with .c at 0.5 <T1S, T1E>
-text "(identity + consent credentials)" below italic color gray \
-  with .c at 0.5 <T1S, T1E>
-
-# ── Step 2: Access Token Response ───────────────────────────
-move to DS.s; move down 1.45in
-T2S: dot invisible
-move to CL.s; move down 1.45in
-T2E: dot invisible
-arrow from T2S.w to T2E.e dashed thick color 0x8E44AD
-text "Access token" above italic \
-  with .c at 0.5 <T2S, T2E>
-
-# ── Step 3: GET Encounter ──────────────────────────────────
-move to CL.s; move down 2.1in
-G1S: dot invisible
-move to DS.s; move down 2.1in
-G1E: dot invisible
-arrow from G1S.e to G1E.w thick color 0x2E86C1
-text "GET /Encounter/enc-98765" above italic \
-  with .c at 0.5 <G1S, G1E>
-text "Authorization: Bearer {token}" below italic color gray \
-  with .c at 0.5 <G1S, G1E>
-
-# Activation box on FHIR Server
-move to G1E
-DSACT: box width 0.15in height 0.6in fill 0xD5F5E3 color 0xD5F5E3 \
-  with .n at G1E
-
-# ── Step 4: Encounter Resource Response ─────────────────────
-move to DS.s; move down 3.0in
-R1S: dot invisible
-move to CL.s; move down 3.0in
-R1E: dot invisible
-arrow from R1S.w to R1E.e dashed thick color 0x2E86C1
-text "Encounter resource (US Core)" above italic \
-  with .c at 0.5 <R1S, R1E>
-
-# ── Note on Client side ────────────────────────────────────
-move to CL.s; move down 3.5in
-text "Client renders encounter" italic color gray \
-  with .e at 0.15in left of last move.end
-text "data for user" italic color gray \
-  with .ne at 0.0in below last text.se
-```
-
-</details>
-
-Clients MUST be prepared for `focus.reference` pointing to either the Broker or a Data Source.
+- Conformant Clients **MUST** support Proxy Retrieval Mode.
+- Clients **MAY** additionally support Direct Retrieval Mode to interoperate with networks that enable it.
 
 ### 5.5 Summary: What's Specified vs. Internal
 
@@ -620,8 +579,8 @@ Clients MUST be prepared for `focus.reference` pointing to either the Broker or 
 | Broker arranges event feeds | **Internal** | Network-specific (FHIR, HL7v2, polling, etc.) |
 | Data Source event production | **Internal** | ADT, FHIR, or other |
 | Notification delivery | **Specified** | FHIR subscription-notification Bundle |
-| Token request to Data Source | **Specified** (format TBD) | Same Backend Services-style pattern |
-| Data retrieval | **Specified** | FHIR RESTful read |
+| Token request to Data Source | **Specified (optional)** | Only in Direct Retrieval Mode |
+| Data retrieval | **Specified** | FHIR RESTful read (typically from Broker in baseline mode) |
 
 ---
 

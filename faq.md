@@ -12,6 +12,34 @@ Provider endpoints don't support FHIR Subscriptions today. Even where FHIR APIs 
 
 Even an `id-only` notification with no PHI in the message reveals to the receiving client that a patient was seen at a particular site of care. This is inherent in any encounter notification system, and it is the same category of information that networks already handle when operating Record Locator Services (RLS). Networks that maintain an RLS or broker RLS responses already know where patients have received care and pass that information to authorized parties. The Subscriptions Broker adds a real-time delivery mechanism on top of this existing trust model.
 
+### How does the Client retrieve Encounter content?
+
+The Client retrieves the resource identified by `focus.reference` in the notification bundle.
+
+Baseline expectation is **Proxy Retrieval Mode**: `focus.reference` points to the Broker, and the Client retrieves the Encounter from the Broker using its existing Broker-issued access token. This avoids per-provider registrations and credentials during initial deployments.
+
+Some networks may later enable **Direct Retrieval Mode**, where `focus.reference` points to a Data Source endpoint and the Client retrieves data from that source after discovering and completing the source's authorization flow.
+
+### When would `focus.reference` point directly to Data Sources instead of the Broker?
+
+Direct retrieval is only practical when Clients can be registered and authorized across the network without manual, provider-by-provider onboarding.
+
+A Network may adopt direct links when it can support either:
+- dynamic registration across participating providers (e.g., SMART/UDAP), or
+- a single network-level registration step that is accepted across the network's providers.
+
+Until then, Networks are expected to operate in Proxy Retrieval Mode.
+
+### How are appointment notifications represented?
+
+To keep the client-facing contract simple and compatible with existing profiles, appointment notifications are represented as planned Encounters conformant to the US Core Encounter profile (future-dated Encounter with `status="planned"`).
+
+### How can a Client validate that a notification came from the Broker?
+
+For `rest-hook` delivery, Brokers **SHALL** deliver notifications over HTTPS.
+
+Clients **MAY** include custom headers in `Subscription.channel.header`. If present, the Broker **SHALL** include these headers in each notification request. A simple and effective pattern is a shared secret header (e.g., `X-Subscription-Token`) that the Client validates on receipt.
+
 ### What about patient matching? EHRs manage their own matching thresholds today.
 
 This is a real concern. Today, when an EHR responds to a query, it applies its own matching algorithm and risk tolerance before releasing data. In the brokered model, the Broker performs matching to route notifications — and if the Broker matches incorrectly, a notification about the wrong patient could be sent.
@@ -57,7 +85,7 @@ This does not extend to scenarios requiring explicit, granular consent:
 - **Minors and guardians** with age-dependent rules
 - **Sensitive data** subject to 42 CFR Part 2 (substance use disorder) or state-level restrictions
 
-These scenarios require a standardized mechanism for conveying consent context alongside identity. The [Argonaut Project](https://confluence.hl7.org/spaces/AP/pages/86969961/Argonaut+Project+Home) is considering a 2026 initiative on **"SMART Permission Tickets"** that could encode identity, consent, and purpose of use into a verifiable token. The CMS Patient Preferences and Consent Workgroup is also exploring approaches.
+These scenarios require a standardized mechanism for conveying consent context alongside identity. The community is exploring portable, cryptographically verifiable artifacts (e.g., "SMART Permission Tickets") that could encode identity, consent, and purpose of use. These are not required for this architecture but may inform future production profiles. The CMS Patient Preferences and Consent Workgroup is also exploring approaches.
 
 ### Can a Client receive notifications from providers in a different network?
 
@@ -67,8 +95,14 @@ How peering works between Brokers is a network-internal concern. The protocol sp
 
 ### What happens if the Client misses a notification?
 
-Each notification includes an `eventNumber` that increments sequentially. If a Client detects a gap (e.g., receives event 5 after event 3), it knows it missed event 4. The Client can use the Subscription's `$status` operation or `$events` operation to catch up on missed notifications. Specific error recovery mechanisms follow the patterns defined in the [FHIR R4 Subscriptions Backport IG](http://hl7.org/fhir/uv/subscriptions-backport/).
+Notification delivery is best effort. Clients should assume at-least-once delivery and be prepared for duplicates.
 
-### How does this relate to TEFCA?
+Each notification includes an `eventNumber` that increments sequentially. If a Client detects a gap (e.g., receives event 5 after event 3), it knows it missed event 4. The Client can use the Subscription `$status` operation or `$events` operation to catch up on missed notifications, following the patterns in the [FHIR R4 Subscriptions Backport IG](http://hl7.org/fhir/uv/subscriptions-backport/).
 
-This spec defines a new capability — brokered FHIR Subscriptions — that any CMS-Aligned Network would adopt, including TEFCA QHINs. A Broker could be operated by a QHIN, or by another type of CMS-Aligned Network. The spec is not specific to any particular network type.
+In addition to gap-based recovery, Clients **SHOULD** poll `$events` on startup/resume and periodically (on the order of weekly) to ensure nothing is missed due to extended downtime. Brokers **SHOULD** retain events for catch-up for at least 14 days.
+
+### Does this require TEFCA?
+
+No. This spec is designed for CMS-Aligned Networks broadly and does not require participation in any specific national network.
+
+TEFCA QHINs are one example of a multi-party network trust framework where a Broker capability could be deployed, but adoption of this architecture is not contingent on TEFCA.
