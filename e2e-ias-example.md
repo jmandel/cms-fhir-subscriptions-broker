@@ -1,6 +1,8 @@
 # End-to-End Example: IAS App Receives Encounter Notification
 
-This walkthrough shows every step when a patient using an Individual Access Services (IAS) app receives a notification that they've been admitted to a hospital ED — from app setup through data retrieval.
+This walkthrough shows every step when a patient using an Individual Access Services (IAS) app receives a notification about an out-of-state ED visit — from app setup through data retrieval.
+
+**Scenario**: Jane is a "snowbird" — she lives in Minnesota but spends winters in Arizona. She's enrolled in an ACO-affiliated care management program at home. While in Arizona, she visits an ED for chest pain. Her IAS app receives the notification in real-time, allowing her Minnesota care team to follow up promptly despite the visit happening 1,500 miles away.
 
 Each step is labeled:
 
@@ -16,11 +18,11 @@ Each step is labeled:
 
 | Actor | Example |
 |-------|---------|
-| **Patient** | Jane Doe |
-| **IAS App** | A patient-facing mobile health app (the Client) |
+| **Patient** | Jane Doe (Minnesota resident, winters in Arizona) |
+| **IAS App** | A patient-facing mobile health app (the Client), connected to Jane's ACO care management program |
 | **Broker** | CMS-Aligned Network's Subscriptions Broker |
 | **Identity Service** | CLEAR or ID.me (Kantara-certified IAL2) |
-| **Data Source** | Mercy Hospital EHR |
+| **Data Source** | Mercy Hospital EHR (Phoenix, AZ) |
 
 ---
 
@@ -185,10 +187,10 @@ The last row illustrates **network peering**: Broker X doesn't need to know abou
 
 ## Phase 5: Event Occurs
 
-### Step 11 — Jane visits Mercy Hospital ED
+### Step 11 — Jane visits Mercy Hospital ED (Phoenix, AZ)
 > **Real-world event**
 
-Jane presents at Mercy Hospital's Emergency Department.
+Jane experiences chest pain while at her winter home in Arizona. She presents at Mercy Hospital's Emergency Department in Phoenix — a facility she's never visited before and that has no prior record of her.
 
 ### Step 12 — Mercy Hospital EHR generates ADT event
 > **Network-Internal**
@@ -335,7 +337,9 @@ Content-Type: application/fhir+json
 }
 ```
 
-Jane's IAS app now shows: "New ED visit at Mercy Hospital — started 2:30 PM today."
+Jane's IAS app now shows: "New ED visit at Mercy Hospital (Phoenix, AZ) — started 2:30 PM today."
+
+Because Jane's IAS app is connected to her Minnesota ACO's care management program, her care team is automatically notified. A care coordinator reviews the ED visit and schedules a follow-up telehealth appointment with Jane's primary care physician for the next morning — despite Jane being 1,500 miles from home. This is the power of real-time, network-wide notifications: care coordination that works regardless of where the patient happens to be.
 
 ---
 

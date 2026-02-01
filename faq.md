@@ -87,6 +87,10 @@ This does not extend to scenarios requiring explicit, granular consent:
 
 These scenarios require a standardized mechanism for conveying consent context alongside identity. The community is exploring portable, cryptographically verifiable artifacts (e.g., "SMART Permission Tickets") that could encode identity, consent, and purpose of use. These are not required for this architecture but may inform future production profiles. The CMS Patient Preferences and Consent Workgroup is also exploring approaches.
 
+Note that Data Sources may not broadcast sensitive events to the network at all—just as they selectively respond to RLS queries today based on their own policies. This architecture does not prescribe source-level filtering rules; it assumes Data Sources apply appropriate policies before events reach the Broker.
+
+For individual access, disclosure is generally within the patient's right regardless of jurisdiction. For delegated access or B2B scenarios, networks and Data Sources must account for applicable state law.
+
 ### Can a Client receive notifications from providers in a different network?
 
 Yes — through network peering. If the Client subscribes at Broker X, and Broker X peers with Broker Y, events from providers in Network Y can flow through to the Client. The Client doesn't need to know which network a provider belongs to; it receives all notifications through its single connection to Broker X.
@@ -100,6 +104,16 @@ Notification delivery is best effort. Clients should assume at-least-once delive
 Each notification includes an `eventNumber` that increments sequentially. If a Client detects a gap (e.g., receives event 5 after event 3), it knows it missed event 4. The Client can use the Subscription `$status` operation or `$events` operation to catch up on missed notifications, following the patterns in the [FHIR R4 Subscriptions Backport IG](http://hl7.org/fhir/uv/subscriptions-backport/).
 
 In addition to gap-based recovery, Clients **SHOULD** poll `$events` on startup/resume and periodically (on the order of weekly) to ensure nothing is missed due to extended downtime. Brokers **SHOULD** retain events for catch-up for at least 14 days.
+
+### Who operates the Broker?
+
+The Broker is operated by (or on behalf of) a CMS-Aligned Network. This is the natural fit because:
+
+- Networks already operate similar infrastructure (e.g., Record Locator Services)
+- Encounter notifications can be viewed as "streaming RLS"—real-time delivery of the same category of information
+- Full coverage requires participation agreements with all network members, which only the network can enforce
+
+A network may operate the Broker directly or contract with a technical partner, but the network provides the trust framework and ensures complete participation. A third party without network-level authority would be unlikely to achieve full coverage.
 
 ### Does this require TEFCA?
 
