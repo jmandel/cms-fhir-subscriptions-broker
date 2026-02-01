@@ -557,18 +557,18 @@ This specification supports two data retrieval modes. **Proxy Retrieval Mode is 
 - The Broker **SHALL** use `focus.reference` URLs rooted at the Broker.
 - The Client retrieves the resource from the Broker using its existing Broker-issued access token.
 
-**Direct Retrieval Mode (optional, future-looking):**
+**Direct Retrieval Mode:**
 
 - The Broker **MAY** use `focus.reference` URLs rooted at a Data Source.
-- This mode is appropriate only when a Client can be registered **across the full network** via dynamic registration (e.g., SMART/UDAP) or via a **single network-level registration step**, rather than requiring manual registration at each provider.
+- This mode requires that the network provide **a pathway for automated client registration** across all participating Data Sources (e.g., SMART/UDAP dynamic registration, or a single network-level registration ceremony accepted by all providers).
 
 | `focus.reference` URL Base | Meaning | Client Action |
 |----------------------------|---------|---------------|
 | Broker's endpoint | Proxy Retrieval Mode | Fetch from Broker (already authenticated) |
-| Data Source endpoint | Direct Retrieval Mode (optional) | Discover auth + obtain token + fetch from Data Source |
+| Data Source endpoint | Direct Retrieval Mode | Discover auth + obtain token + fetch from Data Source |
 
 - Conformant Clients **MUST** support Proxy Retrieval Mode.
-- Clients **MAY** additionally support Direct Retrieval Mode to interoperate with networks that enable it.
+- Clients **SHOULD** also support Direct Retrieval Mode so they can interoperate with networks that provide automated registration pathways.
 
 ### 5.5 Summary: What's Specified vs. Internal
 
@@ -579,7 +579,7 @@ This specification supports two data retrieval modes. **Proxy Retrieval Mode is 
 | Broker arranges event feeds | **Internal** | Network-specific (FHIR, HL7v2, polling, etc.) |
 | Data Source event production | **Internal** | ADT, FHIR, or other |
 | Notification delivery | **Specified** | FHIR subscription-notification Bundle |
-| Token request to Data Source | **Specified (optional)** | Only in Direct Retrieval Mode |
+| Token request to Data Source | **Specified** | Only in Direct Retrieval Mode |
 | Data retrieval | **Specified** | FHIR RESTful read (typically from Broker in baseline mode) |
 
 ---

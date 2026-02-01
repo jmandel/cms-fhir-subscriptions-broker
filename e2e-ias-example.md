@@ -177,8 +177,9 @@ For each discovered Data Source, the Broker sets up event delivery using whateve
 | Mercy Hospital | HL7v2 ADT feed | Hospital sends ADT messages to its network; network routes to Broker |
 | City Clinic | FHIR Subscription | Clinic's EHR supports FHIR natively; Broker creates a child subscription |
 | Blue Cross (Payer) | Polling | Broker periodically checks for new claims |
+| Network Y (peer) | Broker-to-Broker subscription | Broker X subscribes at Broker Y for Jane's events; Broker Y delivers notifications when Jane is seen at any Network Y provider (e.g., Valley Medical) |
 
-The Broker may also register with peer CMS-Aligned Networks to receive cross-network events for Jane (see [FAQ](faq.md#can-a-client-receive-notifications-from-providers-in-a-different-network)).
+The last row illustrates **network peering**: Broker X doesn't need to know about Valley Medical directly — it subscribes once at Broker Y, and Broker Y handles the internal routing. This is how a patient can receive notifications from providers across multiple connected networks through a single Client subscription. See [FAQ](faq.md#can-a-client-receive-notifications-from-providers-in-a-different-network) for more on peering.
 
 ---
 
@@ -243,7 +244,10 @@ X-Subscription-Token: {shared_secret}
             "eventNumber": 1,
             "timestamp": "2026-03-15T14:30:15Z",
             "focus": {
+              // Proxy Retrieval Mode (baseline): reference points to Broker
               "reference": "https://broker.example.org/fhir/Encounter/enc-98765",
+              // Direct Retrieval Mode (if network provides automated registration):
+              // "reference": "https://mercy-hospital.example.org/fhir/Encounter/enc-98765",
               "type": "Encounter"
             }
           }

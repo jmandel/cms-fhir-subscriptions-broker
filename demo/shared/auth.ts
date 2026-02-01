@@ -93,7 +93,7 @@ export function createPermissionTicket(
   return `${h}.${p}.${sig}`;
 }
 
-/** Create a client assertion JWT that embeds a permission ticket */
+/** Create a client assertion JWT that embeds permission tickets */
 export function createClientAssertion(
   clientId: string,
   audience: string,
@@ -105,7 +105,8 @@ export function createClientAssertion(
     sub: clientId,
     aud: audience,
     jti: `assertion-${Date.now()}`,
-    permission_ticket: permissionTicket,
+    // Per SMART Permission Tickets spec: array of ticket JWTs
+    permission_tickets: [permissionTicket],
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + 300,
   };
@@ -116,11 +117,13 @@ export function createClientAssertion(
   return `${h}.${p}.${sig}`;
 }
 
-/** Extract permission ticket from a client assertion */
+/** Extract permission ticket from a client assertion (takes first ticket from array) */
 export function extractPermissionTicket(clientAssertion: string): PermissionTicketPayload | null {
   const assertionPayload = decodeMockToken(clientAssertion) as any;
-  if (!assertionPayload?.permission_ticket) return null;
-  return decodeMockToken(assertionPayload.permission_ticket) as PermissionTicketPayload | null;
+  // Per SMART Permission Tickets spec: permission_tickets is an array
+  const tickets = assertionPayload?.permission_tickets;
+  if (!tickets || !Array.isArray(tickets) || tickets.length === 0) return null;
+  return decodeMockToken(tickets[0]) as PermissionTicketPayload | null;
 }
 
 /** Match patient demographics from a ticket against a registry entry */

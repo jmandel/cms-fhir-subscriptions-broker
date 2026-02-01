@@ -22,13 +22,13 @@ Some networks may later enable **Direct Retrieval Mode**, where `focus.reference
 
 ### When would `focus.reference` point directly to Data Sources instead of the Broker?
 
-Direct retrieval is only practical when Clients can be registered and authorized across the network without manual, provider-by-provider onboarding.
+Direct retrieval requires that the network provide **a pathway for automated client registration** across all participating Data Sources.
 
-A Network may adopt direct links when it can support either:
+A Network may use direct links when it provides either:
 - dynamic registration across participating providers (e.g., SMART/UDAP), or
-- a single network-level registration step that is accepted across the network's providers.
+- a single network-level registration ceremony that is accepted by all providers in the network.
 
-Until then, Networks are expected to operate in Proxy Retrieval Mode.
+Clients SHOULD support both modes. Networks that don't yet have automated registration pathways operate in Proxy Retrieval Mode.
 
 ### How are appointment notifications represented?
 

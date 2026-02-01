@@ -155,7 +155,7 @@ export async function handle(req: Request, ctx?: HandlerContext): Promise<Respon
     pushEvent({
       type: "ticket-extracted",
       detail: `Permission ticket from ${ticket.iss}: ${ticket.ticket_context.subject.traits.name[0]?.given?.join(" ")} ${ticket.ticket_context.subject.traits.name[0]?.family}, DOB ${ticket.ticket_context.subject.traits.birthDate}`,
-      permissionTicket: assertionPayload.permission_ticket,
+      permissionTickets: assertionPayload.permission_tickets,
       ticketPayload: ticket,
     });
 
