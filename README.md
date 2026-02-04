@@ -11,3 +11,4 @@ A brokered model for delivering FHIR encounter notifications across CMS-Aligned 
 - **[Specification](index.md)** — Architecture, protocol flows, and authorization model
 - **[End-to-End Example](e2e-ias-example.md)** — Complete IAS app walkthrough with every step labeled as Specified, Network-Internal, or Prerequisite
 - **[FAQ](faq.md)** — Trust, privacy, patient matching, consent, and relationship to TEFCA
+- **[Cross-Network Peering](peering.md)** *(Experimental)* — How Brokers in different networks might exchange subscription intent and route notifications

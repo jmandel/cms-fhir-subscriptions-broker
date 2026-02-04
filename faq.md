@@ -93,9 +93,11 @@ For individual access, disclosure is generally within the patient's right regard
 
 ### Can a Client receive notifications from providers in a different network?
 
-Yes — through network peering. If the Client subscribes at Broker X, and Broker X peers with Broker Y, events from providers in Network Y can flow through to the Client. The Client doesn't need to know which network a provider belongs to; it receives all notifications through its single connection to Broker X.
+Yes — through cross-network peering. If the Client subscribes at Broker X, and a relevant event occurs at a Data Source that participates in Network Y, that event can flow through to the Client via Broker X. The Client doesn't need to know which network a provider belongs to; it receives all notifications through its single connection to its own Broker.
 
-How peering works between Brokers is a network-internal concern. The protocol specifies only the Client-facing FHIR API.
+Cross-network peering is intended to work analogously to cross-network query: when the applicable trust relationships and authorization basis exist, events from other networks can be routed back to the Client via its home Broker.
+
+See **[Cross-Network Peering](peering.md)** for details on approaches, subscription intent exchange, synchronization patterns, and open questions.
 
 ### What happens if the Client misses a notification?
 

@@ -29,7 +29,6 @@ A **Subscriptions Broker** operated by a CMS-Aligned Network solves this by givi
 3. **Internal plumbing is invisible** — The Broker handles whatever integration is needed behind the scenes
 
 ![Broker Architecture](images/broker-architecture.svg)
-
 ### 2.1 What the Broker Abstracts Away
 
 The Client sees a standard FHIR Subscriptions API. Behind it, the Broker may:
@@ -38,20 +37,27 @@ The Client sees a standard FHIR Subscriptions API. Behind it, the Broker may:
 - Configure HL7v2 ADT routing from Data Sources that use ADT feeds
 - Poll Data Sources that don't support push
 - Query a Record Locator Service (RLS) to discover relevant Data Sources
-- Register for events from peer CMS-Aligned Networks (see [FAQ](faq.md#can-a-client-receive-notifications-from-providers-in-a-different-network))
+- Register for events from peer CMS-Aligned Networks (see [Cross-Network Peering](peering.md))
 - Convert events from HL7v2, CCDA, or proprietary formats into FHIR notifications
 
 None of this is visible to the Client. The Client creates a FHIR Subscription, receives FHIR notification bundles, and retrieves FHIR resources.
 
-### 2.2 Roles
+*Implementation note:* The Broker a Client connects to is a logical service endpoint, not necessarily a single monolithic system. Large networks may operate a **federated or hierarchical broker topology** internally (e.g., national → regional → local), and some Data Sources may connect through intermediaries while others connect directly. This is a network implementation choice — the Client sees a single FHIR API regardless.
+
+### 2.2 Terminology
+
+- **Network (CMS-Aligned Network):** An administrative trust domain that offers a unified Client-facing API surface (e.g., record location and subscription services) under a common participation agreement. A Network may be implemented as a federation or hierarchy of sub-networks and intermediaries.
+- **Trust framework:** A set of shared legal, policy, and technical rules that allows multiple Networks to interoperate (e.g., via cross-network query and/or notification routing). A trust framework may support bilateral or multilateral interoperability arrangements.
+
+### 2.3 Roles
 
 | Actor | Description |
 |-------|-------------|
 | **Client** | Application that creates subscriptions and receives notifications (patient-facing IAS apps, provider apps, care management platforms) |
-| **Broker** | CMS-Aligned Network component that manages subscriptions, aggregates events, and delivers notifications |
+| **Broker** | CMS-Aligned Network component that manages subscriptions, aggregates events, and delivers notifications. The Broker is a logical Client-facing service endpoint and may be implemented as a federated topology internally. |
 | **Data Source** | System that holds patient data and produces events (provider EHRs, payers) |
 
-### 2.3 Relationship to Other Specifications
+### 2.4 Relationship to Other Specifications
 
 | Specification | Relationship |
 |---------------|--------------|
@@ -137,7 +143,6 @@ The Client uses this `patient` value when constructing subscription filter crite
 ## 5. Protocol Flow
 
 ![Protocol Overview](images/protocol-overview.svg)
-
 ### 5.1 Creating a Subscription
 
 **Client → Broker**
@@ -310,6 +315,8 @@ This specification supports two data retrieval modes. **Proxy Retrieval Mode is 
 ## 6. Open Questions
 
 1. **Authorization and consent mechanisms:** How does a Client present identity and consent credentials in a token request — and how does this context propagate to Data Sources? Implicit consent may suffice for initial pilots but will not scale to designated representatives, partial access rights, or sensitive data categories. The SMART Permission Tickets initiative and CMS Patient Preferences and Consent Workgroup are exploring standardized approaches.
+
+2. **Cross-network peering:** When a subscription at one Broker needs to trigger notifications from Data Sources in other networks, how do subscription filters and patient identity information propagate between Brokers? This is analogous to cross-network patient discovery for queries, but applied to event-driven subscriptions. See [Cross-Network Peering](peering.md) for an experimental sketch of approaches.
 
 ---
 
