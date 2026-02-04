@@ -37,7 +37,7 @@ The Client sees a standard FHIR Subscriptions API. Behind it, the Broker may:
 - Configure HL7v2 ADT routing from Data Sources that use ADT feeds
 - Poll Data Sources that don't support push
 - Query a Record Locator Service (RLS) to discover relevant Data Sources
-- Register for events from peer CMS-Aligned Networks (see [FAQ](faq.md#can-a-client-receive-notifications-from-providers-in-a-different-network))
+- Register for events from peer CMS-Aligned Networks (see [Cross-Network Peering](peering.md))
 - Convert events from HL7v2, CCDA, or proprietary formats into FHIR notifications
 
 None of this is visible to the Client. The Client creates a FHIR Subscription, receives FHIR notification bundles, and retrieves FHIR resources.
@@ -316,7 +316,7 @@ This specification supports two data retrieval modes. **Proxy Retrieval Mode is 
 
 1. **Authorization and consent mechanisms:** How does a Client present identity and consent credentials in a token request — and how does this context propagate to Data Sources? Implicit consent may suffice for initial pilots but will not scale to designated representatives, partial access rights, or sensitive data categories. The SMART Permission Tickets initiative and CMS Patient Preferences and Consent Workgroup are exploring standardized approaches.
 
-2. **Cross-network notification routing:** When a subscription at one Broker needs to trigger notifications from Data Sources in other networks, how do subscription filters and patient identity information propagate between Brokers? This is analogous to cross-network patient discovery for queries, but applied to event-driven subscriptions. See [FAQ](faq.md#what-controls-what-flows-across-network-boundaries).
+2. **Cross-network peering:** When a subscription at one Broker needs to trigger notifications from Data Sources in other networks, how do subscription filters and patient identity information propagate between Brokers? This is analogous to cross-network patient discovery for queries, but applied to event-driven subscriptions. See [Cross-Network Peering](peering.md) for an experimental sketch of approaches.
 
 ---
 

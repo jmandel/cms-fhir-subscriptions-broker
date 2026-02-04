@@ -93,31 +93,11 @@ For individual access, disclosure is generally within the patient's right regard
 
 ### Can a Client receive notifications from providers in a different network?
 
-Yes — through cross-network notification routing. If the Client subscribes at Broker X, and a relevant event occurs at a Data Source that participates in Network Y, that event can flow through to the Client via Broker X. The Client doesn't need to know which network a provider belongs to; it receives all notifications through its single connection to its own Broker.
+Yes — through cross-network peering. If the Client subscribes at Broker X, and a relevant event occurs at a Data Source that participates in Network Y, that event can flow through to the Client via Broker X. The Client doesn't need to know which network a provider belongs to; it receives all notifications through its single connection to its own Broker.
 
-Cross-network notification routing is intended to work analogously to cross-network query: when the applicable trust relationships and authorization basis exist, events from other networks can be routed back to the Client via its home Broker. The broker-to-broker routing mechanics are out of scope for this draft.
+Cross-network peering is intended to work analogously to cross-network query: when the applicable trust relationships and authorization basis exist, events from other networks can be routed back to the Client via its home Broker.
 
-In practice, cross-network routing may be implemented in different ways depending on network agreements. Candidate approaches include:
-
-- **Forwarded subscription intent** — Broker X conveys subscription intent (patient identity context + event scope) to Broker Y so Broker Y can match and forward only relevant events.
-- **Delegated matching** — Broker X delegates event matching to Broker Y and receives back only matched notifications (without Broker Y learning Broker X's full subscription state).
-- **Shared routing fabric** — Brokers participate in a shared routing mechanism (e.g., a hub or common service) that supports cross-network delivery according to agreement-defined scope.
-
-This specification does not require any single broker-to-broker mechanism.
-
-### What controls what flows across network boundaries?
-
-Cross-network notification routing does not imply that events are broadcast everywhere. What flows across network boundaries is determined by the applicable trust framework and the specific network-to-network agreements. The key constraints are:
-
-- **Authorization context** — The authorization basis for the subscription (whether patient-requested or another authorized purpose) determines what events the Client is entitled to receive. This is about the applicable legal basis and purpose of use — not about network boundaries per se.
-- **Peering scope (agreement-defined)** — Networks may scope cross-network routing in different ways depending on their agreements (e.g., a broad trust framework, a bilateral agreement, or other arrangements). In all cases, cross-network routing SHOULD be scoped rather than unconstrained broadcast.
-- **Subscription scope (logical, not verbatim forwarding)** — The Client's subscription specifies event types and resource types of interest. However, subscription criteria often reference broker-scoped patient identifiers (e.g., `Patient/broker-123`) that are not meaningful in other networks. Cross-network routing therefore cannot forward filter strings verbatim; the receiving broker must re-express equivalent filters using its own patient identity mapping.
-- **Cross-network patient identity resolution** — The receiving broker must communicate enough patient identity information for the source broker to match the patient against its own records. This is the same cross-network identity challenge that exists for query-based exchange today.
-- **Local policy enforcement** — The network receiving a routing request applies its own policy checks (including consent, purpose of use, and risk controls) before emitting any event across a boundary.
-
-Operationally, Data Sources may participate in multiple Networks and trust frameworks simultaneously, and may send events through multiple intermediaries; this specification does not require exclusive participation or a single industry-wide broker.
-
-The wire-level protocol for how brokers communicate subscription filters and patient identity across network boundaries is not yet defined (see [Open Questions](index.md#6-open-questions)).
+See **[Cross-Network Peering](peering.md)** for details on approaches, subscription intent exchange, synchronization patterns, and open questions.
 
 ### What happens if the Client misses a notification?
 
