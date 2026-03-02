@@ -337,7 +337,7 @@ When a network operates in Empty Notification Mode, the notification omits `focu
         "eventNumber": 1,
         "timestamp": "2026-03-15T14:30:15Z",
         "extension": [{
-          "url": "http://hl7.org/fhir/us/cms-network/StructureDefinition/new-care-relationship",
+          "url": "https://healthtech.cms.gov/fhir/StructureDefinition/new-care-relationship",
           "valueBoolean": true
         }]
       }],
