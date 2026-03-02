@@ -243,9 +243,11 @@ Networks offering Empty Notification Mode **SHALL**:
 - Specify that a notification means "a new care relationship exists somewhere in the network."
 - Specify that clients are expected to re-run the network's RLS + connection workflow after receiving such a notification.
 - Guarantee that all participating sites support network-side connection workflows with no site-specific client registration and no site-specific patient authorization requirements for connection setup.
-- Guarantee that all participating sites support edge FHIR Subscriptions for event delivery into the network.
+- Guarantee that all participating sites support edge FHIR Subscriptions for direct client delivery when a client has an established site-specific subscription.
 
 Networks that cannot make all of these guarantees **SHALL NOT** offer Empty Notification Mode.
+
+This does not constrain how sites deliver events into network infrastructure; network-internal ingestion can still use HL7v2 ADT, polling, FHIR, or other mechanisms.
 
 ### 5.2 Broker Processes the Subscription (Internal)
 

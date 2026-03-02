@@ -30,9 +30,11 @@ A network can use this mode only if it can guarantee all of the following:
 
 - All participating sites support network-side connection workflows with no site-specific client registration requirements.
 - All participating sites support network-side connection workflows with no site-specific patient authorization requirements for connection setup.
-- All participating sites support edge FHIR Subscriptions for event delivery into the network.
+- All participating sites support edge FHIR Subscriptions for direct client delivery when a client has an established site-specific subscription.
 
 Networks that cannot make these guarantees should continue with the baseline `id-only` path.
+
+This does not require any specific site-to-network ingestion pattern; networks can still use HL7v2 ADT, polling, FHIR, or other internal delivery mechanisms.
 
 ### When would `focus.reference` point directly to Data Sources instead of the Broker?
 
