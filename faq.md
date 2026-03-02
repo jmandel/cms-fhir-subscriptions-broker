@@ -10,15 +10,31 @@ Provider endpoints don't support FHIR Subscriptions today. Even where FHIR APIs 
 
 ### Do notifications reveal PHI?
 
-Even an `id-only` notification with no PHI in the message reveals to the receiving client that a patient was seen at a particular site of care. This is inherent in any encounter notification system, and it is the same category of information that networks already handle when operating Record Locator Services (RLS). Networks that maintain an RLS or broker RLS responses already know where patients have received care and pass that information to authorized parties. The Subscriptions Broker adds a real-time delivery mechanism on top of this existing trust model.
+Even an `id-only` notification with no PHI in the message reveals to the receiving client that a patient was seen at a particular site of care. In networks that use Empty Notification Mode (`empty` payload with no `focus`), the signal is that a new care relationship exists somewhere in the network. This is inherent in encounter notification workflows, and it is the same category of information that networks already handle when operating Record Locator Services (RLS). Networks that maintain an RLS or broker RLS responses already know where patients have received care and pass that information to authorized parties. The Subscriptions Broker adds a real-time delivery mechanism on top of this existing trust model.
 
 ### How does the Client retrieve Encounter content?
 
-The Client retrieves the resource identified by `focus.reference` in the notification bundle.
+In `id-only` flows, the Client retrieves the resource identified by `focus.reference` in the notification bundle.
 
 Baseline expectation is **Proxy Retrieval Mode**: `focus.reference` points to the Broker, and the Client retrieves the Encounter from the Broker using its existing Broker-issued access token. This avoids per-provider registrations and credentials during initial deployments.
 
 Some networks may later enable **Direct Retrieval Mode**, where `focus.reference` points to a Data Source endpoint and the Client retrieves data from that source after discovering and completing the source's authorization flow.
+
+In **Empty Notification Mode**, the notification omits `focus` and there is no per-notification Encounter fetch. Because the base US Core feed semantics include any relevant encounter/appointment event, the notification carries a per-event `new-care-relationship` indicator so clients can selectively re-run RLS + connection flow only when a new organization-level care relationship is identified.
+
+### What is Empty Notification Mode, and when can a network use it?
+
+Empty Notification Mode is a network-wide alternative path where subscription payload content is `empty`, notification `focus` is omitted, and each event includes a `new-care-relationship` indicator that tells clients whether a new organization-level care relationship was identified.
+
+A network can use this mode only if it can guarantee all of the following:
+
+- All participating sites support network-side connection workflows with no site-specific client registration requirements.
+- All participating sites support network-side connection workflows with no site-specific patient authorization requirements for connection setup.
+- All participating sites support edge FHIR Subscriptions for direct client delivery when a client has an established site-specific subscription.
+
+Networks that cannot make these guarantees should continue with the baseline `id-only` path.
+
+This does not require any specific site-to-network ingestion pattern; networks can still use HL7v2 ADT, polling, FHIR, or other internal delivery mechanisms.
 
 ### When would `focus.reference` point directly to Data Sources instead of the Broker?
 
