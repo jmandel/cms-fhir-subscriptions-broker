@@ -20,11 +20,11 @@ Baseline expectation is **Proxy Retrieval Mode**: `focus.reference` points to th
 
 Some networks may later enable **Direct Retrieval Mode**, where `focus.reference` points to a Data Source endpoint and the Client retrieves data from that source after discovering and completing the source's authorization flow.
 
-In **Empty Notification Mode**, the notification omits `focus` and there is no per-notification Encounter fetch. The client is expected to re-run RLS + connection flow with the network.
+In **Empty Notification Mode**, the notification omits `focus` and there is no per-notification Encounter fetch. Because the base US Core feed semantics include any relevant encounter/appointment event, the notification carries a per-event `new-care-relationship` indicator so clients can selectively re-run RLS + connection flow only when a new organization-level care relationship is identified.
 
 ### What is Empty Notification Mode, and when can a network use it?
 
-Empty Notification Mode is a network-wide alternative path where subscription payload content is `empty`, notification `focus` is omitted, and each notification means "a new care relationship exists somewhere in the network."
+Empty Notification Mode is a network-wide alternative path where subscription payload content is `empty`, notification `focus` is omitted, and each event includes a `new-care-relationship` indicator that tells clients whether a new organization-level care relationship was identified.
 
 A network can use this mode only if it can guarantee all of the following:
 

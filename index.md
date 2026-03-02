@@ -242,6 +242,7 @@ Networks offering Empty Notification Mode **SHALL**:
 - Document this mode explicitly as a separate option that builds on the main `id-only` path.
 - Specify that a notification means "a new care relationship exists somewhere in the network."
 - Specify that clients are expected to re-run the network's RLS + connection workflow after receiving such a notification.
+- Include a per-event indicator that tells the client whether the event represents a new care relationship at an organization for that patient.
 - Guarantee that all participating sites support network-side connection workflows with no site-specific client registration and no site-specific patient authorization requirements for connection setup.
 - Guarantee that all participating sites support edge FHIR Subscriptions for direct client delivery when a client has an established site-specific subscription.
 
@@ -318,7 +319,7 @@ X-Subscription-Token: {shared_secret}
 
 ### 5.3.1 Optional Empty Notification Mode Delivery Example
 
-When a network operates in Empty Notification Mode, the notification omits `focus` and serves as a re-discovery trigger:
+When a network operates in Empty Notification Mode, the notification omits `focus` and includes a per-event "new care relationship" indicator:
 
 ```js
 {
@@ -334,7 +335,11 @@ When a network operates in Empty Notification Mode, the notification omits `focu
       "eventsSinceSubscriptionStart": 1,
       "notificationEvent": [{
         "eventNumber": 1,
-        "timestamp": "2026-03-15T14:30:15Z"
+        "timestamp": "2026-03-15T14:30:15Z",
+        "extension": [{
+          "url": "http://hl7.org/fhir/us/cms-network/StructureDefinition/new-care-relationship",
+          "valueBoolean": true
+        }]
       }],
       "subscription": {
         "reference": "https://broker.example.org/fhir/Subscription/sub-empty-abc123"
@@ -348,7 +353,8 @@ When a network operates in Empty Notification Mode, the notification omits `focu
 In this mode:
 
 - `notificationEvent.focus` is omitted.
-- The client is expected to re-run the network's RLS + connection workflow.
+- `new-care-relationship=true` means the event indicates a newly discovered care relationship at an organization and the client is expected to re-run the network's RLS + connection workflow.
+- `new-care-relationship=false` means no new organization-level relationship was identified, so no RLS re-trigger is expected for that event.
 - The client does not request an Encounter from the broker or a data source based on this notification.
 
 ### 5.3.2 Delivery Semantics and Catch-up
@@ -375,13 +381,15 @@ This specification supports two retrieval modes. In networks that offer Empty No
 
 - The Broker uses payload content `empty`.
 - The Broker omits `notificationEvent.focus`.
-- The client is expected to re-run RLS + connection flow with the network, rather than retrieve an Encounter for that notification.
+- The Broker includes a per-event `new-care-relationship` indicator.
+- The client uses this indicator to decide whether to re-run RLS + connection flow with the network, rather than retrieving an Encounter for that notification.
 
 | Notification Shape | Meaning | Client Action |
 |--------------------|---------|---------------|
 | `focus.reference` at Broker URL | Proxy Retrieval Mode | Fetch from Broker (already authenticated) |
 | `focus.reference` at Data Source URL | Direct Retrieval Mode | Discover auth + obtain token + fetch from Data Source |
-| No `focus` (payload content `empty`) | Empty-notification pathway | Re-run network RLS + connection flow |
+| No `focus` + `new-care-relationship=true` | Empty-notification pathway (new relationship) | Re-run network RLS + connection flow |
+| No `focus` + `new-care-relationship=false` | Empty-notification pathway (no new relationship) | No RLS re-trigger expected for that event |
 
 - Conformant Clients **MUST** support Proxy Retrieval Mode.
 - Clients **SHOULD** also support Direct Retrieval Mode so they can interoperate with networks that provide automated registration pathways.
