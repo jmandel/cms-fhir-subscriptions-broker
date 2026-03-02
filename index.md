@@ -359,7 +359,7 @@ Each `subscription-notification` includes a monotonically increasing `eventNumbe
 
 ### 5.4 Client Follow-up Behavior
 
-This specification supports two retrieval modes plus one re-discovery mode. **Proxy Retrieval Mode is the baseline expectation for initial deployments**, since provider-by-provider client registrations are operationally unworkable at national scale.
+This specification supports two retrieval modes. In networks that offer Empty Notification Mode, notifications with no `focus` use a re-discovery follow-up path instead of immediate resource retrieval.
 
 **Proxy Retrieval Mode (baseline):**
 
@@ -371,7 +371,7 @@ This specification supports two retrieval modes plus one re-discovery mode. **Pr
 - The Broker **MAY** use `focus.reference` URLs rooted at a Data Source.
 - This mode requires that the network provide **a pathway for automated client registration** across all participating Data Sources (e.g., SMART/UDAP dynamic registration, or a single network-level registration ceremony accepted by all providers).
 
-**Empty Notification Mode (optional, network-wide):**
+**Empty-notification follow-up pathway (optional, network-wide):**
 
 - The Broker uses payload content `empty`.
 - The Broker omits `notificationEvent.focus`.
@@ -381,7 +381,7 @@ This specification supports two retrieval modes plus one re-discovery mode. **Pr
 |--------------------|---------|---------------|
 | `focus.reference` at Broker URL | Proxy Retrieval Mode | Fetch from Broker (already authenticated) |
 | `focus.reference` at Data Source URL | Direct Retrieval Mode | Discover auth + obtain token + fetch from Data Source |
-| No `focus` (payload content `empty`) | Empty Notification Mode | Re-run network RLS + connection flow |
+| No `focus` (payload content `empty`) | Empty-notification pathway | Re-run network RLS + connection flow |
 
 - Conformant Clients **MUST** support Proxy Retrieval Mode.
 - Clients **SHOULD** also support Direct Retrieval Mode so they can interoperate with networks that provide automated registration pathways.
