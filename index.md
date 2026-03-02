@@ -195,13 +195,57 @@ Content-Type: application/fhir+json
 
 - `patient=Patient/broker-123` uses the **broker-assigned `Patient.id`** from the token response — not a cross-organization identifier
 - The `trigger=feed-event` filter uses the US Core Patient Data Feed topic's trigger definition
-- `id-only` payload means notifications contain references, not inline resources (see [FAQ](faq.md#do-notifications-reveal-phi) on PHI implications)
+- This baseline example uses `id-only` payload: notifications contain references, not inline resources (see [FAQ](faq.md#do-notifications-reveal-phi) on PHI implications)
 
 **Security requirements:**
 
 - For `rest-hook` delivery, the Broker **SHALL** require an `https://` endpoint and **SHALL NOT** deliver notifications to `http://` endpoints.
 - The Client **MAY** include one or more HTTP headers using `Subscription.channel.header`. If present, the Broker **SHALL** include these headers in every notification request.
 - If the Client uses a shared secret header (recommended), it **SHOULD** be unpredictable (e.g., a UUID or 32-character hex string) and the Client **SHOULD** reject notifications that do not present the expected value.
+
+### 5.1.1 Optional Network-Wide Empty Notification Mode
+
+Some CMS-Aligned Networks may offer an explicit alternative to `id-only`: an **Empty Notification Mode** where notifications signal that a new care relationship exists somewhere in the network, without including a retrievable Encounter reference.
+
+This mode is a **network-wide policy choice**. Clients receive the behavior that their network offers.
+
+When this mode is used, the subscription payload content is `empty`:
+
+```js
+{
+  "resourceType": "Subscription",
+  "status": "requested",
+  "reason": "Monitor patient encounters across network",
+  "criteria": "http://hl7.org/fhir/us/core/SubscriptionTopic/patient-data-feed",
+  "_criteria": {
+    "extension": [{
+      "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-filter-criteria",
+      "valueString": "Encounter?patient=Patient/broker-123&trigger=feed-event"
+    }]
+  },
+  "channel": {
+    "type": "rest-hook",
+    "endpoint": "https://client.example.org/fhir/notifications",
+    "payload": "application/fhir+json",
+    "_payload": {
+      "extension": [{
+        "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-payload-content",
+        "valueCode": "empty"
+      }]
+    }
+  }
+}
+```
+
+Networks offering Empty Notification Mode **SHALL**:
+
+- Document this mode explicitly as a separate option that builds on the main `id-only` path.
+- Specify that a notification means "a new care relationship exists somewhere in the network."
+- Specify that clients are expected to re-run the network's RLS + connection workflow after receiving such a notification.
+- Guarantee that all participating sites support network-side connection workflows with no site-specific client registration and no site-specific patient authorization requirements for connection setup.
+- Guarantee that all participating sites support edge FHIR Subscriptions for event delivery into the network.
+
+Networks that cannot make all of these guarantees **SHALL NOT** offer Empty Notification Mode.
 
 ### 5.2 Broker Processes the Subscription (Internal)
 
@@ -270,15 +314,50 @@ X-Subscription-Token: {shared_secret}
 - `subscription.reference` points to the Broker (where the Client created it)
 - `eventNumber` allows the Client to detect missed notifications (see [FAQ](faq.md#what-happens-if-the-client-misses-a-notification))
 
-### 5.3.1 Delivery Semantics and Catch-up
+### 5.3.1 Optional Empty Notification Mode Delivery Example
+
+When a network operates in Empty Notification Mode, the notification omits `focus` and serves as a re-discovery trigger:
+
+```js
+{
+  "resourceType": "Bundle",
+  "type": "subscription-notification",
+  "timestamp": "2026-03-15T14:32:00Z",
+  "entry": [{
+    "fullUrl": "urn:uuid:notification-status-2",
+    "resource": {
+      "resourceType": "SubscriptionStatus",
+      "status": "active",
+      "type": "event-notification",
+      "eventsSinceSubscriptionStart": 1,
+      "notificationEvent": [{
+        "eventNumber": 1,
+        "timestamp": "2026-03-15T14:30:15Z"
+      }],
+      "subscription": {
+        "reference": "https://broker.example.org/fhir/Subscription/sub-empty-abc123"
+      },
+      "topic": "http://hl7.org/fhir/us/core/SubscriptionTopic/patient-data-feed"
+    }
+  }]
+}
+```
+
+In this mode:
+
+- `notificationEvent.focus` is omitted.
+- The client is expected to re-run the network's RLS + connection workflow.
+- The client does not request an Encounter from the broker or a data source based on this notification.
+
+### 5.3.2 Delivery Semantics and Catch-up
 
 Notification delivery is **best effort**: transient network failures, client downtime, and duplicate deliveries can occur. Clients **MUST** be idempotent and treat notifications as **at-least-once** delivery.
 
 Each `subscription-notification` includes a monotonically increasing `eventNumber`. Clients **SHOULD** detect gaps and call the Subscription `$events` operation to catch up. Clients **SHOULD** also poll `$events` on startup/resume and periodically (on the order of **weekly**) even when no gaps are detected. Brokers **SHOULD** retain events for catch-up for at least **14 days**.
 
-### 5.4 Client Retrieves Data
+### 5.4 Client Follow-up Behavior
 
-This specification supports two data retrieval modes. **Proxy Retrieval Mode is the baseline expectation for initial deployments**, since provider-by-provider client registrations are operationally unworkable at national scale.
+This specification supports two retrieval modes plus one re-discovery mode. **Proxy Retrieval Mode is the baseline expectation for initial deployments**, since provider-by-provider client registrations are operationally unworkable at national scale.
 
 **Proxy Retrieval Mode (baseline):**
 
@@ -290,13 +369,21 @@ This specification supports two data retrieval modes. **Proxy Retrieval Mode is 
 - The Broker **MAY** use `focus.reference` URLs rooted at a Data Source.
 - This mode requires that the network provide **a pathway for automated client registration** across all participating Data Sources (e.g., SMART/UDAP dynamic registration, or a single network-level registration ceremony accepted by all providers).
 
-| `focus.reference` URL Base | Meaning | Client Action |
-|----------------------------|---------|---------------|
-| Broker's endpoint | Proxy Retrieval Mode | Fetch from Broker (already authenticated) |
-| Data Source endpoint | Direct Retrieval Mode | Discover auth + obtain token + fetch from Data Source |
+**Empty Notification Mode (optional, network-wide):**
+
+- The Broker uses payload content `empty`.
+- The Broker omits `notificationEvent.focus`.
+- The client is expected to re-run RLS + connection flow with the network, rather than retrieve an Encounter for that notification.
+
+| Notification Shape | Meaning | Client Action |
+|--------------------|---------|---------------|
+| `focus.reference` at Broker URL | Proxy Retrieval Mode | Fetch from Broker (already authenticated) |
+| `focus.reference` at Data Source URL | Direct Retrieval Mode | Discover auth + obtain token + fetch from Data Source |
+| No `focus` (payload content `empty`) | Empty Notification Mode | Re-run network RLS + connection flow |
 
 - Conformant Clients **MUST** support Proxy Retrieval Mode.
 - Clients **SHOULD** also support Direct Retrieval Mode so they can interoperate with networks that provide automated registration pathways.
+- Clients interoperating with networks that offer Empty Notification Mode are expected to support this re-discovery behavior.
 
 ### 5.5 Summary: What's Specified vs. Internal
 
@@ -308,7 +395,7 @@ This specification supports two data retrieval modes. **Proxy Retrieval Mode is 
 | Data Source event production | **Internal** | ADT, FHIR, or other |
 | Notification delivery | **Specified** | FHIR subscription-notification Bundle |
 | Token request to Data Source | **Specified** | Only in Direct Retrieval Mode |
-| Data retrieval | **Specified** | FHIR RESTful read (typically from Broker in baseline mode) |
+| Data retrieval or re-discovery follow-up | **Specified** | FHIR RESTful read (proxy/direct) or network RLS + connection flow (empty mode) |
 
 ---
 
