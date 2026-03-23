@@ -193,7 +193,9 @@ All fields are optional. The broker includes what it has. A richer notification 
 
 **Rules:**
 
-- A Home Broker MAY include any combination of fields. A notification with no fields beyond the subscription envelope is valid — it means "discovery changed for this patient."
+- A Home Broker SHOULD include `feed-endpoint` when known, so the client can act without a separate discovery step.
+- When `feed-endpoint` is not available, the Home Broker SHOULD include `source-id` and `network-id` so the client can correlate the event to a discovered source.
+- A notification with no fields beyond the subscription envelope is valid as an escape hatch — it means "discovery changed for this patient" — but SHOULD NOT be the default.
 - If `source-id` and `network-id` are included, they SHALL correlate correctly to the network's existing RLS output.
 - If `feed-endpoint` is included, it SHALL be a valid, subscribable source feed endpoint for the indicated source.
 - The notification is not a full RLS payload. It SHALL NOT require the network to inline complete `Organization` or `Endpoint` resources.
