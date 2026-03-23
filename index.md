@@ -37,11 +37,11 @@ A client subscribes once at its home Broker to learn about new sources of care d
 3. The Home Broker ensures it has peer subscriptions with all relevant peer Brokers (§6.1), attaching an authority for this patient on each (§6.3). If peer subscriptions already exist, the Home Broker multiplexes onto them.
 4. A patient visits a provider. The provider's network detects the new care relationship internally (ADT, FHIR event, polling — mechanism is network-internal).
 5. If the provider is in the Home Network, the Home Broker learns about it directly. If the provider is in a peer network, the peer Broker signals the Home Broker via the `peer-network-events` subscription (§6.5).
-6. Home Broker sends the client a `new-care-relationship` notification. The notification may include correlation hints (`source-id`, `network-id`) and a catch-up cursor (`initial-since`).
+6. Home Broker sends the client a `new-care-relationship` notification. The notification may include the `feed-endpoint` and correlation fields (`source-id`, `network-id`).
 7. If the notification included `feed-endpoint`, the client can proceed directly. Otherwise, the client uses the network's existing RLS or documented source lookup to discover the `feed-endpoint`.
 8. Client authorizes at the source feed endpoint. The token response includes a source-scoped `patient` context.
 9. Client creates a `patient-data-feed` subscription at the source feed endpoint, filtered to that patient.
-10. If `initial-since` was included, client does a catch-up query from that time to pick up the triggering encounter.
+10. Client performs a catch-up query using its own lookback window to pick up the triggering encounter and any other recent activity.
 11. All subsequent encounters and appointments at that source arrive via the subscription. The Home Broker is not in the data path.
 
 ---
@@ -155,10 +155,6 @@ When a new source becomes relevant for the patient, the Home Broker sends a noti
           {
             "name": "feed-endpoint",
             "valueUrl": "https://broker.sw-care.example.org/fhir/sources/mercy-phoenix"
-          },
-          {
-            "name": "initial-since",
-            "valueInstant": "2026-03-23T15:19:45Z"
           }
         ]
       }
@@ -177,7 +173,6 @@ All fields are optional. The broker includes what it has. A richer notification 
 | `network-id` | Stable network key. Used with `source-id` for cross-network correlation. |
 | `feed-endpoint` | The FHIR base URL where the client subscribes for `patient-data-feed`. If included, the client can skip discovery and go straight to authorization + subscription. |
 | `source-fhir-base` | The provider's native FHIR API, if one exists. May support reads/search but is not required to support subscriptions. When absent, there is no separate provider API. When equal to `feed-endpoint`, the provider hosts its own feed. |
-| `initial-since` | Catch-up cursor. Tells the client where to begin its initial historical query at the source feed endpoint. |
 
 **Rules:**
 
@@ -203,7 +198,7 @@ Every source feed endpoint SHALL support:
 - `Subscription` create, read, and delete for the `patient-data-feed` topic
 - `id-only` notifications with absolute `Encounter` and `Appointment` URLs
 - `read` on `Encounter` and `Appointment`
-- Catch-up search over `Encounter` and `Appointment` for the patient from a given time
+- Catch-up search over `Encounter` and `Appointment` for the patient (clients use their own lookback window)
 
 This contract is intentionally narrow. It does not require broad FHIR API access beyond the feed and read-back needed here.
 
@@ -550,7 +545,6 @@ When a source network detects a new care relationship for a watched subject, it 
               "value": "urn:network:sw-care"
             }
           },
-          { "name": "initial-since", "valueInstant": "2026-03-23T17:04:50Z" }
         ]
       }
     }
@@ -578,7 +572,7 @@ When a source network detects a new care relationship for a watched subject, it 
 
 When translating a peer `new-care-relationship-exists` event into a client `new-care-relationship` notification:
 
-- Keep `source-id`, `network-id`, and `initial-since` if present and useful.
+- Keep `source-id`, `network-id`, and `feed-endpoint` if present and useful.
 - Strip `subject-handle` and peer-side authority details.
 
 The client sees the same notification shape regardless of whether the Home Broker learned about the source locally or from a peer.
@@ -617,7 +611,7 @@ Discovery transport is out of scope, but the requirement that networks document 
 
 - SHALL support the `new-care-relationship` topic
 - SHALL send notifications that are actionable through the network's documented discovery flow
-- MAY include `source-id`, `network-id`, and `initial-since`; if included, these SHALL correlate to the network's RLS output or documented source lookup
+- MAY include `source-id`, `network-id`, `feed-endpoint`, and `source-fhir-base` in notifications; if included, these SHALL be accurate
 - SHALL document a path from relationship notification to `feed-endpoint`, either by including it in the notification or through a documented discovery mechanism
 
 **Source feed endpoint:**
@@ -625,7 +619,7 @@ Discovery transport is out of scope, but the requirement that networks document 
 - SHALL support token-authenticated requests
 - SHALL support the `patient-data-feed` topic with `id-only` notifications
 - SHALL support `read` on `Encounter` and `Appointment`
-- SHALL support catch-up search from a given time
+- SHALL support catch-up search for the patient
 - SHALL return a source-scoped patient context in the token response
 - When hosted by a Broker on behalf of a provider, SHALL be provider-specific and SHALL expose this same contract
 
