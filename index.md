@@ -229,18 +229,18 @@ After resolving the source and authorizing at the source feed endpoint, the clie
     {
       "resource": "Encounter",
       "filterParameter": "patient",
-      "value": "source-456"
+      "value": "Patient/source-456"
     },
     {
       "resource": "Appointment",
       "filterParameter": "patient",
-      "value": "source-456"
+      "value": "Patient/source-456"
     }
   ]
 }
 ```
 
-`source-456` is the source-scoped patient ID from the token response at this endpoint (§4.1).
+`Patient/source-456` is the source-scoped patient reference from the token response at this endpoint (§4.1).
 
 ### 4.7 Source feed notification
 
