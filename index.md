@@ -336,7 +336,7 @@ The client always authorizes, subscribes, receives notifications, and reads back
 
 ### 5.3 Notification and discovery
 
-A rich notification that includes `feed-endpoint` is self-contained — the client can act on it directly. A thin notification is a trigger: "something changed — use the network's discovery to find the `feed-endpoint`." Discovery (RLS) remains the authoritative source for the full set of sources a patient has. On initial startup, the client runs discovery to enumerate and subscribe to all currently known sources; the `new-care-relationship` subscription then serves as the incremental delta stream for sources that become relevant after that point.
+A rich notification that includes `feed-endpoint` is self-contained — the client can act on it directly. A thin notification is a trigger: "something changed — use the network's discovery to find the `feed-endpoint`." Discovery (RLS) remains the authoritative source for the full set of sources a patient has.
 
 ### 5.4 Patient identity is resolved by authorization
 
