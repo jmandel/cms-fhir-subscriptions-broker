@@ -618,9 +618,9 @@ The client sees the same notification shape regardless of whether the Home Broke
 - How networks learn about events internally (ADT, polling, FHIR subscriptions from providers)
 - Payment, contracting, and business terms between networks
 
-### Important nuance
+### Note on discovery
 
-Discovery transport is out of scope, but the requirement that networks document a path from relationship notification to `feed-endpoint` is in scope. The mechanism is unspecified; its existence is required.
+This spec does not define how discovery works, but it does require that discovery *exists*. Every network SHALL document how a client gets from a relationship notification to a `feed-endpoint`.
 
 ---
 
