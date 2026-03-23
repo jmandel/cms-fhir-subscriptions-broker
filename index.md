@@ -65,8 +65,10 @@ A client subscribes once at its home Broker to learn about new sources of care d
 | Topic | Plane | Delivered by | Delivered to | Focus | Content | Purpose |
 |-------|-------|-------------|-------------|-------|---------|---------|
 | `new-care-relationship` | Control | Home Broker | Client | `Parameters` | `full-resource` | Signal that a new source is relevant |
-| `patient-data-feed` | Data | Source feed endpoint | Client | `Encounter` or `Appointment` | `id-only` | Ongoing event notifications |
+| `patient-data-feed` | Data | Source feed endpoint | Client | `Encounter` or `Appointment` | `id-only` | Ongoing encounter and appointment notifications |
 | `peer-network-events` | Peer | Peer Broker | Peer Broker | `Parameters` | `full-resource` | Cross-network relationship signaling |
+
+The `patient-data-feed` topic is defined by this spec for the CMS-aligned network use case. It is not the same as the US Core Patient Data Feed topic, which covers a broader resource set. See §4.5 for details on Appointment support.
 
 ---
 
@@ -205,6 +207,8 @@ Every source feed endpoint SHALL support:
 
 This contract is intentionally narrow. It does not require broad FHIR API access beyond the feed and read-back needed here.
 
+**Note on Appointment:** Upcoming appointment details can be communicated using US Core Encounter resources with future dates, or using Appointment resources. Appointment is not yet profiled in US Core but is expected in the next revision of USCDI. This spec includes Appointment in the topic to support both approaches; implementations MAY initially support only Encounter if Appointment is not yet available.
+
 The authorization flow at this endpoint SHALL return a source-scoped patient context in the token response (§4.1). The client uses this for subscription filters and catch-up queries.
 
 When a network Broker hosts a `feed-endpoint` on behalf of a provider, that endpoint SHALL be provider-specific and SHALL expose this same contract.
@@ -223,11 +227,11 @@ After resolving the source and authorizing at the source feed endpoint, the clie
     "extension": [
       {
         "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-filter-criteria",
-        "valueString": "Encounter?patient=Patient/source-456&trigger=feed-event"
+        "valueString": "Encounter?patient=Patient/source-456"
       },
       {
         "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-filter-criteria",
-        "valueString": "Appointment?patient=Patient/source-456&trigger=feed-event"
+        "valueString": "Appointment?patient=Patient/source-456"
       }
     ]
   },
