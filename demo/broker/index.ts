@@ -122,7 +122,7 @@ const adminHtml = `<!DOCTYPE html>
   <div class="card">
     <h2>Active Subscriptions</h2>
     <table>
-      <tr><th>ID</th><th>Patient</th><th>Channel</th><th>Status</th></tr>
+      <tr><th>ID</th><th>Patient</th><th>Delivery</th><th>Status</th></tr>
       <tbody id="subs-body"><tr><td colspan="4" style="color:#666;">None yet</td></tr></tbody>
     </table>
   </div>
