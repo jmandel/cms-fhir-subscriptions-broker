@@ -1,330 +1,687 @@
-# CMS Aligned Networks: FHIR Subscriptions Broker Architecture
+# Relationship Feed + Source Feed Endpoints
 
-**CMS Interoperability Framework — Subscriptions Workgroup**
+**Status:** Draft
 
-*Draft for Discussion*
+## 1. Overview
 
----
+![Architecture overview](images/architecture-overview.svg)
 
-## Vision 
+> **Example cast** — used throughout this document:
+>
+> | Name | Role | Feed endpoint |
+> |------|------|---------------|
+> | **HealthApp** | Client application | — |
+> | **AZ Health Net Broker** | Home Broker | `broker.az-health.example.org/fhir` |
+> | **SW Care Broker** | Peer Broker | `broker.sw-care.example.org/fhir` |
+> | **Valley Clinic** | Provider in SW Care; hosts own FHIR feed | `valley-clinic.example.org/fhir` |
+> | **Mercy Hospital Phoenix** | Provider in SW Care; no FHIR capability | `broker.sw-care.example.org/fhir/sources/mercy-phoenix` (hosted by SW Care Broker) |
+>
+> Valley Clinic hosts its own subscribable FHIR endpoint. Mercy Hospital Phoenix cannot, so the SW Care Broker hosts a `feed-endpoint` on its behalf. In both cases, the client does the same thing: authorize, subscribe, receive notifications.
 
-The [CMS Interoperability Framework](https://www.cms.gov/priorities/key-initiatives/interoperability) requires that CMS-Aligned Networks deliver appointment and encounter notifications for outpatient, telehealth, ED, and inpatient encounters using FHIR Subscriptions by July 4, 2026.
+A client subscribes once at its home Broker to learn about new sources of care data. When notified, the client discovers the source through the network's existing RLS, selects source-specific `patient-data-feed` endpoints, and subscribes there for ongoing encounter and appointment data. Whether the source feed endpoint is provider-operated or broker-hosted, the client does the same thing. Peer Brokers signal each other about watched patients across network boundaries, multiplexing many local interests behind one peer subscription so cross-network signaling scales without per-client fan-out.
 
+### 1.1 Three planes
 
-## 1. The Problem
+| Plane | Purpose | Surface |
+|-------|---------|---------|
+| **Control** | Signal that a new source is relevant | Home Broker → Client |
+| **Data** | Ongoing encounter and appointment feed | Source feed endpoint → Client |
+| **Peer** | Cross-network relationship signaling | Broker ↔ Broker |
 
-Without a brokered approach, an application would need to subscribe for events directly at every data source where a patient might receive care. This is a nonstarter: you can never know in advance every site where a patient might show up — an ED visit, a new specialist, an urgent care clinic while traveling. Even setting aside this fundamental problem, the infrastructure doesn't exist:
+### 1.2 End-to-end flow
 
-- Where FHIR APIs exist, they require provider-portal-specific registration, credentials, and approvals — and rarely support Subscriptions
-- Notification capabilities, where they exist, vary widely (HL7v2 ADT, proprietary feeds, polling)
+![End-to-end flow](images/end-to-end-flow.svg)
 
-The brokered model solves both problems: the app doesn't need to know where a patient will be seen, and it doesn't need to integrate with each site's technology. The network handles discovery and event routing.
-
-## 2. The Brokered Model
-
-A **Subscriptions Broker** operated by a CMS-Aligned Network solves this by giving applications a single FHIR API surface with network-wide reach:
-
-1. **One connection** — The app creates a subscription at the Broker, not at individual data sources
-2. **Network-wide notifications** — The Broker arranges to receive events from all participating data sources and peer networks, then delivers them as standard FHIR notifications
-3. **Internal plumbing is invisible** — The Broker handles whatever integration is needed behind the scenes
-
-![Broker Architecture](images/broker-architecture.svg)
-### 2.1 What the Broker Abstracts Away
-
-The Client sees a standard FHIR Subscriptions API. Behind it, the Broker may:
-
-- Create FHIR Subscriptions at Data Sources that support them natively
-- Configure HL7v2 ADT routing from Data Sources that use ADT feeds
-- Poll Data Sources that don't support push
-- Query a Record Locator Service (RLS) to discover relevant Data Sources
-- Register for events from peer CMS-Aligned Networks (see [Cross-Network Peering](peering.md))
-- Convert events from HL7v2, CCDA, or proprietary formats into FHIR notifications
-
-None of this is visible to the Client. The Client creates a FHIR Subscription, receives FHIR notification bundles, and retrieves FHIR resources.
-
-*Implementation note:* The Broker a Client connects to is a logical service endpoint, not necessarily a single monolithic system. Large networks may operate a **federated or hierarchical broker topology** internally (e.g., national → regional → local), and some Data Sources may connect through intermediaries while others connect directly. This is a network implementation choice — the Client sees a single FHIR API regardless.
-
-### 2.2 Terminology
-
-- **Network (CMS-Aligned Network):** An administrative trust domain that offers a unified Client-facing API surface (e.g., record location and subscription services) under a common participation agreement. A Network may be implemented as a federation or hierarchy of sub-networks and intermediaries.
-- **Trust framework:** A set of shared legal, policy, and technical rules that allows multiple Networks to interoperate (e.g., via cross-network query and/or notification routing). A trust framework may support bilateral or multilateral interoperability arrangements.
-
-### 2.3 Roles
-
-| Actor | Description |
-|-------|-------------|
-| **Client** | Application that creates subscriptions and receives notifications (patient-facing IAS apps, provider apps, care management platforms) |
-| **Broker** | CMS-Aligned Network component that manages subscriptions, aggregates events, and delivers notifications. The Broker is a logical Client-facing service endpoint and may be implemented as a federated topology internally. |
-| **Data Source** | System that holds patient data and produces events (provider EHRs, payers) |
-
-### 2.4 Relationship to Other Specifications
-
-| Specification | Relationship |
-|---------------|--------------|
-| [US Core Patient Data Feed](http://hl7.org/fhir/us/core/patient-data-feed.html) | This architecture uses the Patient Data Feed topic and extends it for brokered scenarios |
-| [FHIR R4 Subscriptions Backport](http://hl7.org/fhir/uv/subscriptions-backport/) | Subscription resource structure and notification bundle format |
-| [SMART Backend Services](http://hl7.org/fhir/smart-app-launch/backend-services.html) | Basis for B2B authorization pattern |
-
-### 2.4 Appointment Notifications
-
-To keep the client-facing contract simple and compatible with existing profiles, appointment notifications are represented as **planned Encounters** conformant to the **US Core Encounter** profile: an appointment is a future-dated Encounter (e.g., `status="planned"` with `period.start` in the future). Networks may map from scheduling systems internally; Clients consume standard US Core Encounter resources.
-
-### 2.5 Trust and Privacy Model
-
-The Broker operates within the same network trust framework that CMS-Aligned Networks already use for services like Record Locator Services — it does not expand the categories of PHI the network handles or the legal basis under which it operates. See the [FAQ](faq.md) for details on trust, patient matching, and notification privacy.
+1. Client authorizes at its Home Broker. The token response includes a broker-scoped `patient` context.
+2. Client creates a `new-care-relationship` subscription at the Home Broker, filtered to that patient.
+3. The Home Broker ensures it has peer subscriptions with all relevant peer Brokers (§6.1), attaching an authority for this patient on each (§6.3). If peer subscriptions already exist, the Home Broker multiplexes onto them.
+4. A patient visits a provider. The provider's network detects the new care relationship internally (ADT, FHIR event, polling — mechanism is network-internal).
+5. If the provider is in the Home Network, the Home Broker learns about it directly. If the provider is in a peer network, the peer Broker signals the Home Broker via the `peer-network-events` channel (§6.5).
+6. Home Broker sends the client a `new-care-relationship` notification. The notification may include correlation hints (`source-id`, `network-id`) and a catch-up cursor (`initial-since`).
+7. Client uses the network's existing RLS or documented source lookup to discover the source and learn its organization and `feed-endpoint`.
+8. Client authorizes at the source feed endpoint. The token response includes a source-scoped `patient` context.
+9. Client creates a `patient-data-feed` subscription at the source feed endpoint, filtered to that patient.
+10. If `initial-since` was included, client does a catch-up query from that time to pick up the triggering encounter.
+11. All subsequent encounters and appointments at that source arrive via the subscription. The Home Broker is not in the data path.
 
 ---
 
-## 3. Patient Identity in the Brokered Model
+## 2. Terms
 
-Patients do not have a single stable identifier across organizations or networks. The brokered model does not require one.
+**Home Broker.** The Broker where the client has its relationship subscription. It notifies the client when new sources become relevant. It may learn about sources locally or from peer Brokers. It is not necessarily where ongoing clinical data is read.
 
-Instead:
+**Source.** A real care source the client may choose to follow. Identified minimally by stable identifiers. Richer detail (organization name, practitioner roles, etc.) comes from RLS, not from the notification.
 
-1. The Client presents **IAL2-verified identity attributes** (e.g., demographic data from a trusted identity provider like CLEAR or ID.me) when requesting an access token from the Broker
-2. The Broker returns a **broker-scoped `Patient.id`** in the access token response (using the SMART on FHIR `patient` parameter)
-3. The Client uses this `Patient.id` in subscription filter criteria
+**Source feed endpoint.** A FHIR base URL that supports the minimal data-plane contract defined in this spec (§4.6). Identified in the source resolution result as `feed-endpoint`. It may be hosted by the provider itself or by the provider's network Broker on the provider's behalf. The client does the same thing in both cases.
 
-This `Patient.id` is meaningful only at the Broker — it is not a cross-organization identifier. How the Broker resolves identity — including when and how patient matching occurs for incoming events — is a network-internal concern (see [FAQ](faq.md#what-about-patient-matching-ehrs-manage-their-own-matching-thresholds-today) for discussion of matching approaches). The Client never needs to know how patients are identified at individual Data Sources.
+**Subject handle.** (Peer model.) A receiver-assigned identifier for a patient on a peer link. The requesting broker supplies this handle when attaching authorities, and the sending peer echoes it in notifications. Multiple authorities for the same patient use the same handle. The requesting broker already knows its own patients — it assigns the handle, so the sending peer does not need to coalesce across attachments.
 
----
+**Authority attachment.** (Peer model.) One local reason for keeping a subject active on a peer link. Each has a stable identifier.
 
-## 4. Authorization
+**Source resolution result.** The result of discovery for one chosen source. It includes:
 
-### 4.1 Identity Requirements
+- the source organization
+- `feed-endpoint` — the FHIR base URL where the client subscribes for `patient-data-feed`
+- optionally, `source-fhir-base` — the provider's native FHIR API, if one exists (may support reads/search but not necessarily subscriptions)
 
-Per CMS Framework Criteria V, all access requires IAL2/AAL2-verified identity. The Client coordinates identity proofing through a [Kantara-certified](https://kantarainitiative.org/trust-status-list/) identity service at IAL2 (e.g., CLEAR, ID.me) out-of-band, then presents the resulting credentials when requesting access tokens.
+When a provider hosts its own FHIR subscriptions, `feed-endpoint` and `source-fhir-base` may be the same URL. When a network Broker hosts the feed on the provider's behalf, `feed-endpoint` points to the Broker's per-provider endpoint and `source-fhir-base` may be absent or point to a separate provider API with different capabilities.
 
-### 4.2 Authorization Context
-
-Access tokens are obtained in the context of verified:
-
-1. **Who** — The verified identity (patient, provider, or delegate)
-2. **What** — The permitted scope of access
-3. **Why** — The purpose (individual access, treatment, payment, operations)
-4. **Consent** — Evidence that disclosure is authorized (see [Section 4.3](#43-consent-and-authorization-pilot-vs-at-scale) for how consent scope evolves from pilot to production)
-
-The authorization flow follows a Backend Services-style pattern: the Client presents credentials in a token request and receives a token without user interaction — identity proofing and consent have already occurred out-of-band.
-
-### 4.3 Consent and Authorization: Pilot vs. At Scale
-
-For an **initial pilot**, implicit authorization may be sufficient — for example, assuming that a patient who has completed IAL2 identity proofing and installed an IAS app has consented to receive their own data.
-
-This **will not scale** to scenarios that require explicit, granular consent:
-
-- Designated representatives acting on behalf of a patient
-- Caregivers with partial access rights
-- Minors and guardians with age-dependent rules
-- Substance use disorder or behavioral health data with 42 CFR Part 2 restrictions
-
-These scenarios require a standardized mechanism for conveying consent context alongside identity in token requests. The community is exploring portable, cryptographically verifiable artifacts (e.g., "SMART Permission Tickets") that could encode identity, consent, and purpose of use in a way that propagates across components. These are **not required** for this architecture but may inform future production profiles. The CMS Patient Preferences and Consent Workgroup is also exploring how consent information should be conveyed in network transactions.
-
-The specific format for authorization requests is **out of scope for this document** but must be pinned down for production use. See [FAQ](faq.md#why-is-implicit-consent-acceptable-for-a-pilot-but-not-at-scale) for further discussion.
-
-### 4.4 Token Response
-
-The Broker's token response follows [SMART on FHIR](http://hl7.org/fhir/smart-app-launch/) conventions, including a `patient` parameter that gives the Client the broker-scoped `Patient.id` to use in subsequent requests:
-
-```js
-{
-  "access_token": "eyJ...",
-  "token_type": "bearer",
-  "expires_in": 3600,
-  // Subscription management + Encounter read for proxy retrieval
-  "scope": "system/Subscription.crud system/Encounter.r",
-  "patient": "broker-123"  // Broker-scoped Patient.id for use in filters
-}
-```
-
-The Client uses this `patient` value when constructing subscription filter criteria — it never needs to know or supply a cross-organization patient identifier.
+Networks MAY expose this result directly through a FHIR RLS mechanism. If they do not, their existing out-of-band RLS or discovery flow SHALL still make equivalent information derivable.
 
 ---
 
-## 5. Protocol Flow
+## 3. Topics
 
-![Protocol Overview](images/protocol-overview.svg)
-### 5.1 Creating a Subscription
+| Topic | Plane | Delivered by | Delivered to | Focus | Content | Purpose |
+|-------|-------|-------------|-------------|-------|---------|---------|
+| `new-care-relationship` | Control | Home Broker | Client | `Parameters` | `full-resource` | Signal that a new source is relevant |
+| `patient-data-feed` | Data | Source feed endpoint | Client | `Encounter` or `Appointment` | `id-only` | Ongoing event notifications |
+| `peer-network-events` | Peer | Peer Broker | Peer Broker | `Parameters` | `full-resource` | Cross-network relationship signaling |
 
-**Client → Broker**
+---
 
-```http
-POST https://broker.example.org/fhir/Subscription
-Authorization: Bearer {access_token}
-Content-Type: application/fhir+json
-```
+## 4. Client-Facing Model
 
-```js
+### 4.1 Authorization and patient identity
+
+Patient identity is resolved during authorization at every endpoint. The token response includes the patient context the client uses at that endpoint.
+
+- At the Home Broker, the token response includes a broker-scoped patient context (e.g., `"patient": "broker-123"`). The client uses this in its `new-care-relationship` subscription filter.
+- At a source feed endpoint, the token response includes a source-scoped patient context (e.g., `"patient": "Patient/source-456"`). The client uses this in its `patient-data-feed` subscription filter.
+
+This is the same pattern at every level. No separate patient-resolution API is needed. SMART on FHIR is one way to convey this — the `patient` parameter in the token response is standard SMART behavior.
+
+### 4.2 Home Broker subscription
+
+```json
 {
   "resourceType": "Subscription",
   "status": "requested",
-  "reason": "Monitor patient encounters across network",
-
-  // Topic: US Core Patient Data Feed
-  "criteria": "http://hl7.org/fhir/us/core/SubscriptionTopic/patient-data-feed",
-  "_criteria": {
-    "extension": [{
-      "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-filter-criteria",
-      // Filter to encounters for this patient (broker-scoped id from token response)
-      "valueString": "Encounter?patient=Patient/broker-123&trigger=feed-event"
-    }]
+  "topic": "https://cms.gov/fhir/SubscriptionTopic/new-care-relationship",
+  "channelType": {
+    "system": "http://terminology.hl7.org/CodeSystem/subscription-channel-type",
+    "code": "rest-hook"
   },
-
-  "channel": {
-    "type": "rest-hook",
-    // Where the Broker should POST notifications
-    "endpoint": "https://client.example.org/fhir/notifications",
-    "payload": "application/fhir+json",
-
-    // Optional but recommended: shared secret header for validation
-    "header": [
-      "X-Subscription-Token: {shared_secret}"
-    ],
-
-    "_payload": {
-      "extension": [{
-        "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-payload-content",
-        // Notification includes references only — Client fetches full resources separately
-        "valueCode": "id-only"
-      }]
-    }
-  }
+  "endpoint": "https://app.example.org/fhir/notifications",
+  "contentType": "application/fhir+json",
+  "content": "full-resource"
 }
 ```
 
-**Key points:**
+### 4.3 Relationship notification
 
-- `patient=Patient/broker-123` uses the **broker-assigned `Patient.id`** from the token response — not a cross-organization identifier
-- The `trigger=feed-event` filter uses the US Core Patient Data Feed topic's trigger definition
-- `id-only` payload means notifications contain references, not inline resources (see [FAQ](faq.md#do-notifications-reveal-phi) on PHI implications)
+When a new source becomes relevant for the patient, the Home Broker sends a notification. The focus is a `Parameters` resource that may carry correlation and catch-up hints.
 
-**Security requirements:**
-
-- For `rest-hook` delivery, the Broker **SHALL** require an `https://` endpoint and **SHALL NOT** deliver notifications to `http://` endpoints.
-- The Client **MAY** include one or more HTTP headers using `Subscription.channel.header`. If present, the Broker **SHALL** include these headers in every notification request.
-- If the Client uses a shared secret header (recommended), it **SHOULD** be unpredictable (e.g., a UUID or 32-character hex string) and the Client **SHOULD** reject notifications that do not present the expected value.
-
-### 5.2 Broker Processes the Subscription (Internal)
-
-What happens inside the network is opaque to the Client. The Broker arranges to receive relevant events from Data Sources using whatever mechanisms are available — FHIR Subscriptions, HL7v2 ADT feeds, polling, peer network queries. The Client sees only the `Subscription` resource (with status updates) and the notifications that follow.
-
-| Status | Meaning |
-|--------|---------|
-| `requested` | Client has requested; Broker is setting up |
-| `active` | Subscription is live; notifications will be delivered |
-| `error` | Problem occurred (details in `error` element) |
-| `off` | Subscription is disabled |
-
-### 5.3 Event Occurs and Notification Is Delivered
-
-**Broker → Client**
-
-When a matching event occurs at any Data Source in the network (or a peer network), the Broker delivers a FHIR notification bundle:
-
-![Notification Flow](images/notification-flow.svg)
-
-The Broker delivers the notification over HTTPS, including any headers the Client specified:
-
-```http
-POST https://client.example.org/fhir/notifications
-Content-Type: application/fhir+json
-X-Subscription-Token: {shared_secret}
-```
-
-```js
+```json
 {
   "resourceType": "Bundle",
   "type": "subscription-notification",
-  "timestamp": "2026-03-15T14:32:00Z",
-  "entry": [{
-    "fullUrl": "urn:uuid:notification-status-1",
-    "resource": {
-      "resourceType": "SubscriptionStatus",
-      "status": "active",
-      "type": "event-notification",
-      "eventsSinceSubscriptionStart": 1,
-      "notificationEvent": [{
-        "eventNumber": 1,
-        "timestamp": "2026-03-15T14:30:15Z",
-        "focus": {
-          // Baseline: Broker Proxy Retrieval mode
-          // (avoids per-provider client registrations during initial deployments)
-          "reference": "https://broker.example.org/fhir/Encounter/enc-98765",
-          "type": "Encounter"
-        }
-      }],
-      // Points back to the Broker where the Client created the Subscription
-      "subscription": {
-        "reference": "https://broker.example.org/fhir/Subscription/sub-abc123"
-      },
-      "topic": "http://hl7.org/fhir/us/core/SubscriptionTopic/patient-data-feed"
+  "timestamp": "2026-03-23T15:20:00Z",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:status-1",
+      "resource": {
+        "resourceType": "SubscriptionStatus",
+        "status": "active",
+        "type": "event-notification",
+        "eventsSinceSubscriptionStart": 7,
+        "notificationEvent": [
+          {
+            "eventNumber": 7,
+            "timestamp": "2026-03-23T15:19:45Z",
+            "focus": {
+              "reference": "urn:uuid:params-1",
+              "type": "Parameters"
+            }
+          }
+        ],
+        "subscription": {
+          "reference": "https://broker.az-health.example.org/fhir/Subscription/sub-rel-1"
+        },
+        "topic": "https://cms.gov/fhir/SubscriptionTopic/new-care-relationship"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:params-1",
+      "resource": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "source-id",
+            "valueIdentifier": {
+              "system": "https://cms.gov/fhir/sid/source-id",
+              "value": "urn:source:mercy-phoenix"
+            }
+          },
+          {
+            "name": "network-id",
+            "valueIdentifier": {
+              "system": "https://cms.gov/fhir/sid/network-id",
+              "value": "urn:network:sw-care"
+            }
+          },
+          {
+            "name": "initial-since",
+            "valueInstant": "2026-03-23T15:19:45Z"
+          }
+        ]
+      }
     }
-  }]
+  ]
 }
 ```
 
-**Key points:**
+**Hint fields:**
 
-- `focus.reference` is an **absolute URL** — the Client follows it to retrieve the resource.
-- In the baseline deployment model, `focus.reference` **points to the Broker** (proxy/cached retrieval).
-- A Broker **MAY** return `focus.reference` values that point to Data Sources when network-wide client registration is feasible (see Section 5.4).
-- `subscription.reference` points to the Broker (where the Client created it)
-- `eventNumber` allows the Client to detect missed notifications (see [FAQ](faq.md#what-happens-if-the-client-misses-a-notification))
+| Field | Purpose |
+|-------|---------|
+| `source-id` | Stable source key. Correlates to the network's RLS output so the client can match this event to a discovered source. |
+| `network-id` | Stable network key. Used with `source-id` for correlation. |
+| `initial-since` | Catch-up cursor. Tells the client where to begin its initial historical query at the source feed endpoint. |
 
-### 5.3.1 Delivery Semantics and Catch-up
+**Rules:**
 
-Notification delivery is **best effort**: transient network failures, client downtime, and duplicate deliveries can occur. Clients **MUST** be idempotent and treat notifications as **at-least-once** delivery.
+- A Home Broker MAY include `source-id`, `network-id`, and `initial-since`.
+- If included, these fields SHALL correlate correctly to the network's existing RLS output or documented source lookup.
+- A Home Broker MAY send a thinner event that simply means "discovery changed for this patient" without correlation hints. Even without hints, the client can act on it by re-running discovery.
+- The notification is intentionally not a full RLS payload. It SHALL NOT require the network to inline complete `Organization` or `Endpoint` resources.
 
-Each `subscription-notification` includes a monotonically increasing `eventNumber`. Clients **SHOULD** detect gaps and call the Subscription `$events` operation to catch up. Clients **SHOULD** also poll `$events` on startup/resume and periodically (on the order of **weekly**) even when no gaps are detected. Brokers **SHOULD** retain events for catch-up for at least **14 days**.
+### 4.4 Source resolution result
 
-### 5.4 Client Retrieves Data
+This specification defines a canonical in-band FHIR shape for source resolution, even though a network MAY continue to provide discovery or RLS out of band.
 
-This specification supports two data retrieval modes. **Proxy Retrieval Mode is the baseline expectation for initial deployments**, since provider-by-provider client registrations are operationally unworkable at national scale.
+If a network exposes a FHIR discovery or RLS mechanism, it SHOULD return a `Parameters` resource shaped like this. If it does not expose a FHIR mechanism, its existing out-of-band process SHALL still make equivalent information derivable.
 
-**Proxy Retrieval Mode (baseline):**
+The canonical source-resolution result for one source includes:
 
-- The Broker **SHALL** use `focus.reference` URLs rooted at the Broker.
-- The Client retrieves the resource from the Broker using its existing Broker-issued access token.
+- `source-id`
+- `network-id`
+- `organization`
+- `feed-endpoint`
+- optionally, `source-fhir-base`
 
-**Direct Retrieval Mode:**
+Example (Mercy Hospital Phoenix — broker-hosted feed):
 
-- The Broker **MAY** use `focus.reference` URLs rooted at a Data Source.
-- This mode requires that the network provide **a pathway for automated client registration** across all participating Data Sources (e.g., SMART/UDAP dynamic registration, or a single network-level registration ceremony accepted by all providers).
+```json
+{
+  "resourceType": "Parameters",
+  "parameter": [
+    {
+      "name": "source-resolution",
+      "part": [
+        {
+          "name": "source-id",
+          "valueIdentifier": {
+            "system": "https://cms.gov/fhir/sid/source-id",
+            "value": "urn:source:mercy-phoenix"
+          }
+        },
+        {
+          "name": "network-id",
+          "valueIdentifier": {
+            "system": "https://cms.gov/fhir/sid/network-id",
+            "value": "urn:network:sw-care"
+          }
+        },
+        {
+          "name": "organization",
+          "resource": {
+            "resourceType": "Organization",
+            "identifier": [
+              {
+                "system": "https://cms.gov/fhir/sid/source-id",
+                "value": "urn:source:mercy-phoenix"
+              }
+            ],
+            "name": "Mercy Hospital Phoenix"
+          }
+        },
+        {
+          "name": "feed-endpoint",
+          "resource": {
+            "resourceType": "Endpoint",
+            "status": "active",
+            "connectionType": {
+              "system": "http://terminology.hl7.org/CodeSystem/endpoint-connection-type",
+              "code": "hl7-fhir-rest"
+            },
+            "address": "https://broker.sw-care.example.org/fhir/sources/mercy-phoenix"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
 
-| `focus.reference` URL Base | Meaning | Client Action |
-|----------------------------|---------|---------------|
-| Broker's endpoint | Proxy Retrieval Mode | Fetch from Broker (already authenticated) |
-| Data Source endpoint | Direct Retrieval Mode | Discover auth + obtain token + fetch from Data Source |
+Mercy has no native FHIR API, so `source-fhir-base` is absent. For Valley Clinic, `feed-endpoint` and `source-fhir-base` would both point to `https://valley-clinic.example.org/fhir`.
 
-- Conformant Clients **MUST** support Proxy Retrieval Mode.
-- Clients **SHOULD** also support Direct Retrieval Mode so they can interoperate with networks that provide automated registration pathways.
+**Field semantics:**
 
-### 5.5 Summary: What's Specified vs. Internal
+| Field | Purpose |
+|-------|---------|
+| `source-id` | Stable source key for correlation with relationship notifications |
+| `network-id` | Stable network key for correlation |
+| `organization` | The underlying care source |
+| `feed-endpoint` | The FHIR endpoint where the client subscribes for `patient-data-feed` |
+| `source-fhir-base` | Optional. The provider's native FHIR API, which may support broader capabilities (reads, search) but is not required to support subscriptions |
 
-| Step | Specified or Internal | Notes |
-|------|----------------------|-------|
-| Token request to Broker | **Specified** (format TBD) | Backend Services-style with identity + consent |
-| Subscription creation | **Specified** | FHIR Subscription resource |
-| Broker arranges event feeds | **Internal** | Network-specific (FHIR, HL7v2, polling, etc.) |
-| Data Source event production | **Internal** | ADT, FHIR, or other |
-| Notification delivery | **Specified** | FHIR subscription-notification Bundle |
-| Token request to Data Source | **Specified** | Only in Direct Retrieval Mode |
-| Data retrieval | **Specified** | FHIR RESTful read (typically from Broker in baseline mode) |
+### 4.5 Discovery and source lookup
+
+After receiving a relationship notification, the client uses the network's existing RLS or documented source lookup to resolve the new source into the canonical source-resolution result above.
+
+This spec does not standardize the discovery transport. The network's documented approach may be:
+
+- the existing RLS directly
+- the existing RLS plus a network-specific source directory
+- another documented lookup available to authorized clients
+- a future FHIR RLS mechanism that returns the canonical `Parameters` result
+
+The requirements are:
+
+- If the notification includes `source-id` and `network-id`, the network's documented process SHALL return those same values so the client can correlate the event to the resolved source.
+- For each chosen source, that process SHALL yield the canonical source-resolution information:
+  - source organization
+  - `feed-endpoint`
+
+### 4.6 Source feed endpoint contract
+
+Every source feed endpoint SHALL support:
+
+- Token-authenticated FHIR requests
+- `Subscription` create, read, and delete for the `patient-data-feed` topic
+- `id-only` notifications with absolute `Encounter` and `Appointment` URLs
+- `read` on `Encounter` and `Appointment`
+- Catch-up search over `Encounter` and `Appointment` for the patient from a given time
+
+This contract is intentionally narrow. It does not require broad FHIR API access beyond the feed and read-back needed here.
+
+The authorization flow at this endpoint SHALL return a source-scoped patient context in the token response (§4.1). The client uses this for subscription filters and catch-up queries.
+
+When a network Broker hosts a `feed-endpoint` on behalf of a provider, that endpoint SHALL be provider-specific and SHALL expose this same contract.
+
+### 4.7 Source feed subscription
+
+After resolving the source and authorizing at the source feed endpoint, the client creates a subscription filtered to the patient context from the token response. This example shows HealthApp subscribing at Valley Clinic (direct):
+
+```json
+{
+  "resourceType": "Subscription",
+  "status": "requested",
+  "topic": "https://cms.gov/fhir/SubscriptionTopic/patient-data-feed",
+  "channelType": {
+    "system": "http://terminology.hl7.org/CodeSystem/subscription-channel-type",
+    "code": "rest-hook"
+  },
+  "endpoint": "https://app.example.org/fhir/source-notifications/valley-clinic",
+  "contentType": "application/fhir+json",
+  "content": "id-only",
+  "filterBy": [
+    {
+      "resource": "Encounter",
+      "filterParameter": "patient",
+      "value": "Patient/source-456"
+    },
+    {
+      "resource": "Appointment",
+      "filterParameter": "patient",
+      "value": "Patient/source-456"
+    }
+  ]
+}
+```
+
+`Patient/source-456` is the source-scoped patient reference from the token response at this endpoint (§4.1).
+
+### 4.8 Source feed notification
+
+Continuing the Valley Clinic (direct) example:
+
+```json
+{
+  "resourceType": "Bundle",
+  "type": "subscription-notification",
+  "timestamp": "2026-03-23T16:02:00Z",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:status-2",
+      "resource": {
+        "resourceType": "SubscriptionStatus",
+        "status": "active",
+        "type": "event-notification",
+        "eventsSinceSubscriptionStart": 12,
+        "notificationEvent": [
+          {
+            "eventNumber": 12,
+            "timestamp": "2026-03-23T16:01:52Z",
+            "focus": {
+              "reference": "https://valley-clinic.example.org/fhir/Encounter/enc-789",
+              "type": "Encounter"
+            }
+          }
+        ],
+        "subscription": {
+          "reference": "https://valley-clinic.example.org/fhir/Subscription/sub-feed-1"
+        },
+        "topic": "https://cms.gov/fhir/SubscriptionTopic/patient-data-feed"
+      }
+    }
+  ]
+}
+```
+
+The client reads back the resource from the URL in `focus.reference`, which is at the same endpoint it subscribed to. For a broker-hosted source like Mercy Hospital Phoenix, the URLs would be at the SW Care Broker's proxy (`broker.sw-care.example.org/fhir/sources/mercy-phoenix/...`) but the interaction is identical.
 
 ---
 
-## 6. Open Questions
+## 5. Core Design Rules
 
-1. **Authorization and consent mechanisms:** How does a Client present identity and consent credentials in a token request — and how does this context propagate to Data Sources? Implicit consent may suffice for initial pilots but will not scale to designated representatives, partial access rights, or sensitive data categories. The SMART Permission Tickets initiative and CMS Patient Preferences and Consent Workgroup are exploring standardized approaches.
+### 5.1 One actionable locator
 
-2. **Cross-network peering:** When a subscription at one Broker needs to trigger notifications from Data Sources in other networks, how do subscription filters and patient identity information propagate between Brokers? This is analogous to cross-network patient discovery for queries, but applied to event-driven subscriptions. See [Cross-Network Peering](peering.md) for an experimental sketch of approaches.
+The only locator the client needs for a source is `feed-endpoint`. There is no separate connection URL or connection resource.
+
+### 5.2 One client experience
+
+The client always authorizes, subscribes, receives notifications, and reads back resources at a source feed endpoint. Whether that endpoint is provider-operated or broker-hosted is invisible to the client.
+
+### 5.3 Discovery remains authoritative
+
+The relationship notification does not replace discovery. Discovery (RLS) remains the authoritative source for the full set of sources and the actual `feed-endpoint` URL.
+
+The notification is a trigger: "something changed — re-run discovery." The optional hints make that re-run more efficient but are not a substitute.
+
+### 5.4 Patient identity is resolved by authorization
+
+Patient identity is resolved during the authorization step at every endpoint (§4.1). The token response includes the patient context the client uses for subscription filters and queries. No separate patient-resolution API is needed.
 
 ---
 
-## References
+## 6. Peer Model
 
-- [CMS Interoperability Framework](https://www.cms.gov/priorities/key-initiatives/interoperability)
-- [US Core Patient Data Feed](http://hl7.org/fhir/us/core/patient-data-feed.html)
-- [FHIR R4 Subscriptions Backport IG](http://hl7.org/fhir/uv/subscriptions-backport/)
-- [SMART Backend Services](http://hl7.org/fhir/smart-app-launch/backend-services.html)
-- [SMART on FHIR](http://hl7.org/fhir/smart-app-launch/)
-- [Kantara Trust Status List](https://kantarainitiative.org/trust-status-list/)
+### 6.1 One multiplexed peer subscription
+
+Each peer pair uses one long-lived `Subscription` for the `peer-network-events` topic. This single channel carries notifications for all watched subjects between the two Brokers.
+
+```json
+{
+  "resourceType": "Subscription",
+  "status": "requested",
+  "topic": "https://cms.gov/fhir/SubscriptionTopic/peer-network-events",
+  "channelType": {
+    "system": "http://terminology.hl7.org/CodeSystem/subscription-channel-type",
+    "code": "rest-hook"
+  },
+  "endpoint": "https://broker.az-health.example.org/fhir/peer-notifications",
+  "contentType": "application/fhir+json",
+  "content": "full-resource"
+}
+```
+
+The peer does not create one subscription per watched patient or per downstream client.
+
+### 6.2 Peer API surface
+
+| Operation | Purpose |
+|-----------|---------|
+| `POST /Subscription` | Create the multiplexed peer subscription |
+| `GET /Subscription/{id}` | Read the peer subscription |
+| `DELETE /Subscription/{id}` | Terminate the peer subscription |
+| `POST /Subscription/{id}/$attach-authority` | Add one authority attachment |
+| `POST /Subscription/{id}/$detach-authority` | Remove one authority attachment |
+
+Notification delivery uses standard `subscription-notification` bundles to `Subscription.endpoint`.
+
+These operations may be managed out-of-band, but the implementation SHALL preserve the same logical semantics: one multiplexed stream, per-authority attach/detach, and the notification shapes defined below.
+
+### 6.3 Attaching an authority
+
+An authority attachment tells a peer: "watch for this patient." The requesting broker supplies a `subject-handle` that it has already resolved locally — the sending peer echoes this handle in notifications without needing to coalesce across attachments.
+
+`POST [peer-base]/Subscription/{id}/$attach-authority`
+
+```json
+{
+  "resourceType": "Parameters",
+  "parameter": [
+    {
+      "name": "subject-handle",
+      "valueString": "patient-broker-a-123"
+    },
+    {
+      "name": "subject",
+      "resource": {
+        "resourceType": "Patient",
+        "identifier": [
+          {
+            "system": "https://payer.example.org/member-id",
+            "value": "ABC123"
+          }
+        ],
+        "name": [{ "family": "Smith", "given": ["Jane"] }],
+        "birthDate": "1980-02-01",
+        "gender": "female",
+        "address": [{ "postalCode": "78701" }]
+      }
+    },
+    {
+      "name": "authority-identifier",
+      "valueIdentifier": {
+        "system": "https://broker.az-health.example.org/fhir/authority-attachment-id",
+        "value": "auth-123"
+      }
+    },
+    {
+      "name": "supporting-artifact",
+      "part": [
+        { "name": "type", "valueString": "permission-ticket" },
+        { "name": "value", "valueString": "opaque-ticket-or-token" }
+      ]
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "resourceType": "Parameters",
+  "parameter": [
+    { "name": "subject-handle", "valueString": "patient-broker-a-123" },
+    { "name": "authority-count", "valueInteger": 3 }
+  ]
+}
+```
+
+**Fields:**
+
+| Field | Direction | Purpose |
+|-------|-----------|---------|
+| `subject-handle` | Request | Receiver-assigned patient handle. The sender echoes this in notifications. Multiple authorities for the same patient use the same handle. |
+| `subject` | Request | Patient demographics for cross-network matching |
+| `authority-identifier` | Request | Stable ID for this authority attachment |
+| `supporting-artifact` | Request | Optional typed artifact (e.g., permission ticket) |
+| `authority-count` | Response | How many authorities are behind this subject-handle |
+
+**Rules:**
+
+- Multiple authorities with the same `subject-handle` are treated as the same patient. The sender does not need to match demographics across attachments to determine this.
+- The sender uses the supplied demographics to match incoming events, and echoes the `subject-handle` in notifications.
+- `supporting-artifact` is optional and opaque unless a peer pair agrees on meaning out of band.
+
+### 6.4 Detaching an authority
+
+`POST [peer-base]/Subscription/{id}/$detach-authority`
+
+```json
+{
+  "resourceType": "Parameters",
+  "parameter": [
+    {
+      "name": "authority-identifier",
+      "valueIdentifier": {
+        "system": "https://broker.az-health.example.org/fhir/authority-attachment-id",
+        "value": "auth-123"
+      }
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "resourceType": "Parameters",
+  "parameter": [
+    { "name": "subject-handle", "valueString": "patient-broker-a-123" },
+    { "name": "authority-count", "valueInteger": 2 }
+  ]
+}
+```
+
+**Rules:**
+
+- When `authority-count` reaches zero, the subject is no longer active. Notifications stop.
+- No separate watch-inspection API is required. Each peer maintains its own local authority registry keyed by `subject-handle` and `authority-identifier`.
+
+### 6.5 Peer notification: new-care-relationship-exists
+
+When a source network detects a new care relationship for a watched subject, it sends a `new-care-relationship-exists` event on the peer channel.
+
+```json
+{
+  "resourceType": "Bundle",
+  "type": "subscription-notification",
+  "timestamp": "2026-03-23T17:05:00Z",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:status-3",
+      "resource": {
+        "resourceType": "SubscriptionStatus",
+        "status": "active",
+        "type": "event-notification",
+        "eventsSinceSubscriptionStart": 21,
+        "notificationEvent": [
+          {
+            "eventNumber": 21,
+            "timestamp": "2026-03-23T17:04:50Z",
+            "focus": {
+              "reference": "urn:uuid:peer-event-1",
+              "type": "Parameters"
+            }
+          }
+        ],
+        "subscription": {
+          "reference": "https://broker.sw-care.example.org/fhir/Subscription/sub-peer-1"
+        },
+        "topic": "https://cms.gov/fhir/SubscriptionTopic/peer-network-events"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:peer-event-1",
+      "resource": {
+        "resourceType": "Parameters",
+        "parameter": [
+          { "name": "kind", "valueCode": "new-care-relationship-exists" },
+          { "name": "subject-handle", "valueString": "patient-broker-a-123" },
+          {
+            "name": "source-id",
+            "valueIdentifier": {
+              "system": "https://cms.gov/fhir/sid/source-id",
+              "value": "urn:source:mercy-phoenix"
+            }
+          },
+          {
+            "name": "network-id",
+            "valueIdentifier": {
+              "system": "https://cms.gov/fhir/sid/network-id",
+              "value": "urn:network:sw-care"
+            }
+          },
+          { "name": "initial-since", "valueInstant": "2026-03-23T17:04:50Z" }
+        ]
+      }
+    }
+  ]
+}
+```
+
+**Peer-only fields:**
+
+| Field | Purpose |
+|-------|---------|
+| `kind` | Event type. Currently only `new-care-relationship-exists`; reserved for future event types. |
+| `subject-handle` | Receiver-assigned patient handle, echoed from the attach request |
+
+### 6.6 Aggregation rules
+
+- A peer pair uses one multiplexed subscription.
+- Multiple authorities with the same `subject-handle` represent the same patient. The sender echoes the handle in notifications without needing to match demographics across attachments.
+- A sending peer SHALL emit at most one `new-care-relationship-exists` event per newly relevant source per `subject-handle`, unless source details or `initial-since` materially change.
+- A sending peer SHALL stop all notifications for a `subject-handle` when its authority count reaches zero.
+- A receiving peer SHALL maintain its own local authority registry. It SHALL NOT require the sender to repeat authority details in every notification.
+- If 100 clients at the receiving broker all care about the same patient, they share one `subject-handle`, and the peer link carries one event, not 100.
+
+### 6.7 Translation to client notifications
+
+When translating a peer `new-care-relationship-exists` event into a client `new-care-relationship` notification:
+
+- Keep `source-id`, `network-id`, and `initial-since` if present and useful.
+- Strip `subject-handle` and peer-side authority details.
+
+The client sees the same notification shape regardless of whether the Home Broker learned about the source locally or from a peer.
+
+---
+
+## 7. Scope
+
+### In scope
+
+- Client-facing `new-care-relationship` topic and notification shape
+- Authorization-time patient identity resolution
+- Source feed endpoint contract (`patient-data-feed`, read-back, catch-up)
+- Multiplexed peer subscription and `peer-network-events` topic
+- `$attach-authority` and `$detach-authority` operations
+- Peer `new-care-relationship-exists` notification shape
+
+### Out of scope
+
+- Discovery/RLS transport and internal details
+- Patient-matching algorithms used by peers
+- Full trust-framework and token choreography at each endpoint
+- Broad FHIR API access beyond the minimal source feed contract
+- How networks learn about events internally (ADT, polling, FHIR subscriptions from providers)
+- Payment, contracting, and business terms between networks
+
+### Important nuance
+
+Discovery transport is out of scope, but the requirement that networks document a path from relationship notification to `feed-endpoint` is in scope. The mechanism is unspecified; its existence is required.
+
+---
+
+## 8. Conformance Summary
+
+**Home Broker:**
+
+- SHALL support the `new-care-relationship` topic
+- SHALL send notifications that are actionable through the network's documented discovery flow
+- MAY include `source-id`, `network-id`, and `initial-since`; if included, these SHALL correlate to the network's RLS output or documented source lookup
+- SHALL ensure authorized clients can determine the canonical source-resolution result through a documented approach
+
+**Source feed endpoint:**
+
+- SHALL support token-authenticated requests
+- SHALL support the `patient-data-feed` topic with `id-only` notifications
+- SHALL support `read` on `Encounter` and `Appointment`
+- SHALL support catch-up search from a given time
+- SHALL return a source-scoped patient context in the token response
+- When hosted by a Broker on behalf of a provider, SHALL be provider-specific and SHALL expose this same contract
+
+**Peer Broker:**
+
+- SHALL support one multiplexed peer subscription per peer pair
+- SHALL support `$attach-authority` and `$detach-authority`
+- SHALL aggregate authorities by `subject-handle`
+- SHALL stop peer notifications when authority count reaches zero
+- SHALL use the `peer-network-events` notification shapes defined here

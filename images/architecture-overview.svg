@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 340" font-family="'Inter', 'Segoe UI', system-ui, sans-serif">
+  <rect width="700" height="340" fill="white"/>
+  <style>
+    .box { stroke-width: 1.5; }
+    .label-primary { font-size: 13px; font-weight: 600; }
+    .label-secondary { font-size: 11px; }
+    .network-label { font-size: 12px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+    .connector { fill: none; stroke-width: 1.5; }
+    .step-num { font-size: 10px; font-weight: 700; fill: white; text-anchor: middle; }
+    .plane-key { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  </style>
+
+  <defs>
+    <marker id="arr-grn" viewBox="0 0 8 6" refX="8" refY="3" markerWidth="8" markerHeight="6" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#16a34a"/>
+    </marker>
+    <marker id="arr-dk" viewBox="0 0 8 6" refX="8" refY="3" markerWidth="8" markerHeight="6" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#334155"/>
+    </marker>
+    <marker id="arr-gy" viewBox="0 0 8 6" refX="8" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <!-- ====== Network boundaries ====== -->
+  <rect x="176" y="14" width="190" height="144" rx="10"
+        fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="7 4"/>
+  <text x="271" y="36" text-anchor="middle" class="network-label" fill="#64748b">Home Network</text>
+
+  <rect x="472" y="14" width="190" height="144" rx="10"
+        fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="7 4"/>
+  <text x="567" y="36" text-anchor="middle" class="network-label" fill="#64748b">Peer Network</text>
+
+  <!-- ====== Boxes ====== -->
+
+  <!-- Client -->
+  <rect x="16" y="62" width="120" height="64" rx="6"
+        class="box" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="76" y="91" text-anchor="middle" class="label-primary" fill="#1e40af">Client</text>
+  <text x="76" y="108" text-anchor="middle" class="label-secondary" fill="#60a5fa">(app)</text>
+
+  <!-- Home Broker -->
+  <rect x="194" y="48" width="154" height="78" rx="6"
+        class="box" fill="#f0fdf4" stroke="#22c55e"/>
+  <text x="271" y="82" text-anchor="middle" class="label-primary" fill="#166534">Home Broker</text>
+  <text x="271" y="100" text-anchor="middle" class="label-secondary" fill="#16a34a">Subscriptions Broker</text>
+
+  <!-- Peer Broker -->
+  <rect x="490" y="48" width="154" height="78" rx="6"
+        class="box" fill="#f0fdf4" stroke="#22c55e"/>
+  <text x="567" y="82" text-anchor="middle" class="label-primary" fill="#166534">Peer Broker</text>
+  <text x="567" y="100" text-anchor="middle" class="label-secondary" fill="#16a34a">Subscriptions Broker</text>
+
+  <!-- Source Feed Endpoint -->
+  <rect x="16" y="206" width="200" height="56" rx="6"
+        class="box" fill="#fefce8" stroke="#eab308"/>
+  <text x="116" y="231" text-anchor="middle" class="label-primary" fill="#854d0e">Source Feed Endpoint</text>
+  <text x="116" y="248" text-anchor="middle" class="label-secondary" fill="#a16207">provider- or broker-hosted</text>
+
+  <!-- ====== Connections ====== -->
+
+  <!-- ① Client → Home Broker (subscribe) -->
+  <line x1="136" y1="80" x2="192" y2="80"
+        class="connector" stroke="#16a34a" marker-end="url(#arr-grn)"/>
+  <circle cx="164" cy="71" r="8" fill="#16a34a"/>
+  <text x="164" y="75" class="step-num">1</text>
+
+  <!-- ② Home Broker → Client (notification) -->
+  <line x1="192" y1="106" x2="136" y2="106"
+        class="connector" stroke="#16a34a" marker-end="url(#arr-grn)"/>
+  <circle cx="164" cy="115" r="8" fill="#16a34a"/>
+  <text x="164" y="119" class="step-num">2</text>
+
+  <!-- Control-plane label -->
+  <rect x="127" y="132" width="124" height="16" rx="3" fill="#f0fdf4"/>
+  <text x="189" y="144" text-anchor="middle" font-size="10" font-weight="500" fill="#16a34a">new-care-relationship</text>
+
+  <!-- Peer: Home Broker ↔ Peer Broker -->
+  <line x1="348" y1="87" x2="488" y2="87"
+        class="connector" stroke="#94a3b8" stroke-dasharray="6 3"
+        marker-start="url(#arr-gy)" marker-end="url(#arr-gy)"/>
+  <rect x="374" y="73" width="100" height="15" rx="3" fill="white"/>
+  <text x="424" y="84" text-anchor="middle" font-size="9" font-style="italic" fill="#94a3b8">peer-network-events</text>
+
+  <!-- ③ Client → Source Feed Endpoint (data plane) -->
+  <line x1="76" y1="126" x2="76" y2="204"
+        class="connector" stroke="#334155" marker-end="url(#arr-dk)"/>
+  <circle cx="90" cy="165" r="8" fill="#334155"/>
+  <text x="90" y="169" class="step-num">3</text>
+  <rect x="99" y="157" width="82" height="15" rx="3" fill="#fefce8"/>
+  <text x="140" y="168" text-anchor="middle" font-size="10" font-weight="500" fill="#334155">patient-data-feed</text>
+
+  <!-- ====== Provider stubs from brokers ====== -->
+
+  <!-- Peer Broker → providers / feed endpoints (dotted, internal) -->
+  <line x1="567" y1="126" x2="567" y2="150"
+        class="connector" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 3"/>
+  <text x="567" y="146" text-anchor="middle" font-size="8" fill="#94a3b8">providers</text>
+
+  <!-- ====== Legend ====== -->
+  <rect x="16" y="286" width="648" height="42" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+
+  <!-- Step descriptions -->
+  <circle cx="30" cy="300" r="6" fill="#16a34a"/>
+  <text x="30" y="303" text-anchor="middle" font-size="8" font-weight="700" fill="white">1</text>
+  <text x="42" y="304" font-size="10" fill="#334155">Subscribe at Home Broker</text>
+
+  <circle cx="178" cy="300" r="6" fill="#16a34a"/>
+  <text x="178" y="303" text-anchor="middle" font-size="8" font-weight="700" fill="white">2</text>
+  <text x="190" y="304" font-size="10" fill="#334155">Relationship notification</text>
+
+  <circle cx="340" cy="300" r="6" fill="#334155"/>
+  <text x="340" y="303" text-anchor="middle" font-size="8" font-weight="700" fill="white">3</text>
+  <text x="352" y="304" font-size="10" fill="#334155">Discover source via RLS, subscribe for data</text>
+
+  <!-- Plane legend -->
+  <line x1="30" y1="320" x2="50" y2="320" stroke="#16a34a" stroke-width="2"/>
+  <text x="56" y="324" class="plane-key" fill="#16a34a">Control</text>
+
+  <line x1="110" y1="320" x2="130" y2="320" stroke="#334155" stroke-width="1.5"/>
+  <text x="136" y="324" class="plane-key" fill="#334155">Data</text>
+
+  <line x1="180" y1="320" x2="200" y2="320" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 3"/>
+  <text x="206" y="324" class="plane-key" fill="#94a3b8">Peer</text>
+</svg>

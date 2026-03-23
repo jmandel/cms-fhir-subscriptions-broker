@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 880" width="700" height="880">
+  <rect width="700" height="880" fill="white"/>
+  <defs>
+    <style>
+      .actor-label { font-family: Inter, 'Segoe UI', system-ui, sans-serif; font-size: 12px; font-weight: 600; text-anchor: middle; fill: #1e293b; }
+      .msg-label { font-family: Inter, 'Segoe UI', system-ui, sans-serif; font-size: 11px; fill: #334155; }
+      .msg-label-gray { font-family: Inter, 'Segoe UI', system-ui, sans-serif; font-size: 11px; fill: #64748b; font-style: italic; }
+      .phase-label { font-family: Inter, 'Segoe UI', system-ui, sans-serif; font-size: 10px; font-weight: 600; fill: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase; }
+      .lifeline { stroke: #cbd5e1; stroke-width: 1; stroke-dasharray: 6 4; }
+      .arrow-solid { stroke: #334155; stroke-width: 1.5; fill: none; marker-end: url(#arrowSolid); }
+      .arrow-dashed { stroke: #94a3b8; stroke-width: 1.5; fill: none; stroke-dasharray: 6 3; marker-end: url(#arrowDashed); }
+      .arrow-green { stroke: #16a34a; stroke-width: 1.5; fill: none; marker-end: url(#arrowGreen); }
+      .self-arrow { stroke: #64748b; stroke-width: 1.5; fill: none; marker-end: url(#arrowGray); }
+    </style>
+    <marker id="arrowSolid" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0.5 L9,4 L0,7.5 z" fill="#334155"/>
+    </marker>
+    <marker id="arrowDashed" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0.5 L9,4 L0,7.5 z" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0.5 L9,4 L0,7.5 z" fill="#16a34a"/>
+    </marker>
+    <marker id="arrowGray" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0.5 L9,4 L0,7.5 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <!-- ============ ACTOR BOXES ============ -->
+  <!-- Client x=120 -->
+  <rect x="70" y="20" width="100" height="36" rx="6" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="120" y="43" class="actor-label">Client</text>
+
+  <!-- Home Broker x=340 -->
+  <rect x="275" y="20" width="130" height="36" rx="6" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="340" y="43" class="actor-label">Home Broker</text>
+
+  <!-- Source Feed x=570 -->
+  <rect x="495" y="20" width="150" height="36" rx="6" fill="#fefce8" stroke="#eab308" stroke-width="1.5"/>
+  <text x="570" y="35" class="actor-label">Source Feed</text>
+  <text x="570" y="49" class="actor-label" style="font-weight:400; font-size:10px">direct or brokered</text>
+
+  <!-- ============ LIFELINES ============ -->
+  <line x1="120" y1="56" x2="120" y2="870" class="lifeline"/>
+  <line x1="340" y1="56" x2="340" y2="870" class="lifeline"/>
+  <line x1="570" y1="56" x2="570" y2="870" class="lifeline"/>
+
+  <!-- ============ PHASE 1: CONTROL PLANE SETUP  y=76 ============ -->
+  <line x1="16" y1="76" x2="684" y2="76" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="24" y="89" class="phase-label">Control Plane Setup</text>
+
+  <!-- Authorize at Broker -->
+  <text x="148" y="112" class="msg-label">Token request (identity claims)</text>
+  <line x1="120" y1="118" x2="340" y2="118" class="arrow-solid"/>
+
+  <text x="148" y="150" class="msg-label">Token {patient: "broker-123"}</text>
+  <line x1="340" y1="156" x2="120" y2="156" class="arrow-solid"/>
+
+  <!-- Subscribe at Broker -->
+  <text x="148" y="190" class="msg-label">POST Subscription (new-care-relationship)</text>
+  <line x1="120" y1="196" x2="340" y2="196" class="arrow-solid"/>
+
+  <text x="178" y="228" class="msg-label">201 Created</text>
+  <line x1="340" y1="234" x2="120" y2="234" class="arrow-solid"/>
+
+  <!-- ============ PHASE 2: RELATIONSHIP NOTIFICATION  y=264 ============ -->
+  <line x1="16" y1="264" x2="684" y2="264" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="24" y="277" class="phase-label">Relationship Notification</text>
+
+  <!-- Event occurs annotation -->
+  <text x="340" y="300" class="msg-label-gray" text-anchor="middle">Patient visits new provider</text>
+
+  <!-- Broker notifies client -->
+  <text x="132" y="332" class="msg-label">new-care-relationship {source-id, initial-since}</text>
+  <line x1="340" y1="338" x2="120" y2="338" class="arrow-green"/>
+
+  <!-- ============ PHASE 3: DISCOVERY  y=368 ============ -->
+  <line x1="16" y1="368" x2="684" y2="368" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="24" y="381" class="phase-label">Discovery</text>
+
+  <!-- RLS self-arrow -->
+  <text x="148" y="404" class="msg-label-gray">RLS → discover feed-base</text>
+  <path d="M120,410 L160,410 L160,430 L120,430" class="self-arrow"/>
+
+  <!-- ============ PHASE 4: SOURCE CONNECTION  y=456 ============ -->
+  <line x1="16" y1="456" x2="684" y2="456" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="24" y="469" class="phase-label">Source Connection</text>
+
+  <!-- Authorize at Source Feed -->
+  <text x="260" y="492" class="msg-label">Token request (identity claims)</text>
+  <line x1="120" y1="498" x2="570" y2="498" class="arrow-solid"/>
+
+  <text x="260" y="528" class="msg-label">Token {patient: "Patient/source-456"}</text>
+  <line x1="570" y1="534" x2="120" y2="534" class="arrow-solid"/>
+
+  <!-- Subscribe at Source Feed -->
+  <text x="228" y="566" class="msg-label">POST Subscription (patient-data-feed, patient=source-456)</text>
+  <line x1="120" y1="572" x2="570" y2="572" class="arrow-solid"/>
+
+  <text x="300" y="604" class="msg-label">201 Created</text>
+  <line x1="570" y1="610" x2="120" y2="610" class="arrow-solid"/>
+
+  <!-- Catch-up query -->
+  <text x="260" y="642" class="msg-label-gray">GET Encounter?patient=source-456&amp;date=ge{initial-since}</text>
+  <line x1="120" y1="648" x2="570" y2="648" class="arrow-dashed"/>
+
+  <text x="344" y="676" class="msg-label-gray">Bundle of past encounters</text>
+  <line x1="570" y1="682" x2="120" y2="682" class="arrow-dashed"/>
+
+  <!-- ============ PHASE 5: ONGOING DATA  y=710 ============ -->
+  <line x1="16" y1="710" x2="684" y2="710" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="24" y="723" class="phase-label">Ongoing Data</text>
+
+  <!-- Source notifies client -->
+  <text x="570" y="744" class="msg-label-gray" text-anchor="end">New encounter at source</text>
+
+  <text x="254" y="770" class="msg-label">Notification {focus: Encounter/enc-789}</text>
+  <line x1="570" y1="776" x2="120" y2="776" class="arrow-green"/>
+
+  <!-- Client reads back -->
+  <text x="300" y="808" class="msg-label">GET Encounter/enc-789</text>
+  <line x1="120" y1="814" x2="570" y2="814" class="arrow-solid"/>
+
+  <text x="344" y="844" class="msg-label">Encounter resource</text>
+  <line x1="570" y1="850" x2="120" y2="850" class="arrow-solid"/>
+</svg>
