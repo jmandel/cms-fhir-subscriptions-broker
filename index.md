@@ -65,7 +65,7 @@ A client subscribes once at its home Broker to learn about new sources of care d
 | Topic | Plane | Delivered by | Delivered to | Focus | Content | Purpose |
 |-------|-------|-------------|-------------|-------|---------|---------|
 | `https://cms.gov/fhir/SubscriptionTopic/new-care-relationship` | Control | Home Broker | Client | `Parameters` | `full-resource` | Signal that a new source is relevant |
-| `https://cms.gov/fhir/SubscriptionTopic/patient-data-feed` | Data | Source feed endpoint | Client | `Encounter` or `Appointment` | `id-only` | Ongoing encounter and appointment notifications |
+| `http://hl7.org/fhir/us/core/SubscriptionTopic/patient-data-feed` | Data | Source feed endpoint | Client | `Encounter` or `Appointment` | `id-only` | Ongoing encounter and appointment notifications |
 | `https://cms.gov/fhir/SubscriptionTopic/peer-network-events` | Peer | Peer Broker | Peer Broker | `Parameters` | `full-resource` | Cross-network relationship signaling |
 
 The `patient-data-feed` topic is defined by this spec for the CMS-aligned network use case. It is not the same as the US Core Patient Data Feed topic, which covers a broader resource set. See §4.5 for details on Appointment support.
@@ -236,7 +236,7 @@ After resolving the source and authorizing at the source feed endpoint, the clie
   "resourceType": "Subscription",
   "status": "requested",
   "reason": "Notify on encounter and appointment events",
-  "criteria": "https://cms.gov/fhir/SubscriptionTopic/patient-data-feed",
+  "criteria": "http://hl7.org/fhir/us/core/SubscriptionTopic/patient-data-feed",
   "_criteria": {
     "extension": [
       {
