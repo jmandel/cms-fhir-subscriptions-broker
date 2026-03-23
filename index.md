@@ -565,7 +565,7 @@ When a source network detects a new care relationship for a watched subject, it 
 
 - A peer pair uses one multiplexed subscription.
 - Multiple authorities with the same `subject-handle` represent the same patient. The sender echoes the handle in notifications without needing to match demographics across attachments.
-- A sending peer SHALL emit at most one `new-care-relationship-exists` event per newly relevant source per `subject-handle`, unless source details or `initial-since` materially change.
+- A sending peer SHOULD emit at most one `new-care-relationship-exists` event per newly relevant source per `subject-handle`.
 - A sending peer SHALL stop all notifications for a `subject-handle` when its authority count reaches zero.
 - A receiving peer SHALL maintain its own local authority registry. It SHALL NOT require the sender to repeat authority details in every notification.
 - If 100 clients at the receiving broker all care about the same patient, they share one `subject-handle`, and the peer link carries one event, not 100.
