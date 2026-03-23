@@ -211,32 +211,39 @@ When a network Broker hosts a `feed-endpoint` on behalf of a provider, that endp
 
 ### 4.6 Source feed subscription
 
-After resolving the source and authorizing at the source feed endpoint, the client creates a subscription filtered to the patient context from the token response. This example shows HealthApp subscribing at Valley Clinic (direct):
+After resolving the source and authorizing at the source feed endpoint, the client creates a subscription filtered to the patient context from the token response. The subscription follows the [Subscriptions R5 Backport IG](http://hl7.org/fhir/uv/subscriptions-backport/) format. This example shows HealthApp subscribing at Valley Clinic (direct):
 
 ```json
 {
   "resourceType": "Subscription",
   "status": "requested",
-  "topic": "https://cms.gov/fhir/SubscriptionTopic/patient-data-feed",
-  "channelType": {
-    "system": "http://terminology.hl7.org/CodeSystem/subscription-channel-type",
-    "code": "rest-hook"
+  "reason": "Notify on encounter and appointment events",
+  "criteria": "http://hl7.org/fhir/us/core/SubscriptionTopic/patient-data-feed",
+  "_criteria": {
+    "extension": [
+      {
+        "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-filter-criteria",
+        "valueString": "Encounter?patient=Patient/source-456&trigger=feed-event"
+      },
+      {
+        "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-filter-criteria",
+        "valueString": "Appointment?patient=Patient/source-456&trigger=feed-event"
+      }
+    ]
   },
-  "endpoint": "https://app.example.org/fhir/source-notifications/valley-clinic",
-  "contentType": "application/fhir+json",
-  "content": "id-only",
-  "filterBy": [
-    {
-      "resource": "Encounter",
-      "filterParameter": "patient",
-      "value": "Patient/source-456"
-    },
-    {
-      "resource": "Appointment",
-      "filterParameter": "patient",
-      "value": "Patient/source-456"
+  "channel": {
+    "type": "rest-hook",
+    "endpoint": "https://app.example.org/fhir/source-notifications/valley-clinic",
+    "payload": "application/fhir+json",
+    "_payload": {
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-payload-content",
+          "valueCode": "id-only"
+        }
+      ]
     }
-  ]
+  }
 }
 ```
 
@@ -244,42 +251,75 @@ After resolving the source and authorizing at the source feed endpoint, the clie
 
 ### 4.7 Source feed notification
 
-Continuing the Valley Clinic (direct) example:
+Continuing the Valley Clinic (direct) example. The notification follows the [Subscriptions R5 Backport IG](http://hl7.org/fhir/uv/subscriptions-backport/) format, with a `Parameters` resource carrying the subscription status and trigger information:
 
 ```json
 {
   "resourceType": "Bundle",
-  "type": "subscription-notification",
+  "type": "history",
   "timestamp": "2026-03-23T16:02:00Z",
   "entry": [
     {
       "fullUrl": "urn:uuid:status-2",
       "resource": {
-        "resourceType": "SubscriptionStatus",
-        "status": "active",
-        "type": "event-notification",
-        "eventsSinceSubscriptionStart": 12,
-        "notificationEvent": [
+        "resourceType": "Parameters",
+        "parameter": [
           {
-            "eventNumber": 12,
-            "timestamp": "2026-03-23T16:01:52Z",
-            "focus": {
-              "reference": "https://valley-clinic.example.org/fhir/Encounter/enc-789",
-              "type": "Encounter"
+            "name": "subscription",
+            "valueReference": {
+              "reference": "https://valley-clinic.example.org/fhir/Subscription/sub-feed-1"
             }
+          },
+          {
+            "name": "topic",
+            "valueCanonical": "http://hl7.org/fhir/us/core/SubscriptionTopic/patient-data-feed"
+          },
+          {
+            "name": "status",
+            "valueCode": "active"
+          },
+          {
+            "name": "type",
+            "valueCode": "event-notification"
+          },
+          {
+            "name": "events-since-subscription-start",
+            "valueString": "12"
+          },
+          {
+            "name": "notification-event",
+            "part": [
+              {
+                "name": "event-number",
+                "valueString": "12"
+              },
+              {
+                "name": "timestamp",
+                "valueInstant": "2026-03-23T16:01:52Z"
+              },
+              {
+                "name": "focus",
+                "valueReference": {
+                  "reference": "https://valley-clinic.example.org/fhir/Encounter/enc-789"
+                }
+              },
+              {
+                "name": "trigger",
+                "valueCoding": {
+                  "system": "http://hl7.org/fhir/us/core/CodeSystem/trigger",
+                  "code": "feed-event"
+                }
+              }
+            ]
           }
-        ],
-        "subscription": {
-          "reference": "https://valley-clinic.example.org/fhir/Subscription/sub-feed-1"
-        },
-        "topic": "https://cms.gov/fhir/SubscriptionTopic/patient-data-feed"
+        ]
       }
     }
   ]
 }
 ```
 
-The client reads back the resource from the URL in `focus.reference`, which is at the same endpoint it subscribed to. For a broker-hosted source like Mercy Hospital Phoenix, the URLs would be at the SW Care Broker's proxy (`broker.sw-care.example.org/fhir/sources/mercy-phoenix/...`) but the interaction is identical.
+The client reads back the resource from the URL in `focus.valueReference.reference`, which is at the same endpoint it subscribed to. For a broker-hosted source like Mercy Hospital Phoenix, the URLs would be at the SW Care Broker's proxy (`broker.sw-care.example.org/fhir/sources/mercy-phoenix/...`) but the interaction is identical.
 
 ---
 
