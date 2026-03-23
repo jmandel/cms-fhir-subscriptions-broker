@@ -77,7 +77,7 @@ A client subscribes once at its home Broker to learn about new sources of care d
 Patient identity is resolved during authorization at every endpoint. The token response includes the patient context the client uses at that endpoint.
 
 - At the Home Broker, the token response includes a broker-scoped patient context (e.g., `"patient": "broker-123"`). The client uses this in its `new-care-relationship` subscription filter.
-- At a source feed endpoint, the token response includes a source-scoped patient context (e.g., `"patient": "Patient/source-456"`). The client uses this in its `patient-data-feed` subscription filter.
+- At a source feed endpoint, the token response includes a source-scoped patient context (e.g., `"patient": "source-456"`). The client uses this in its `patient-data-feed` subscription filter.
 
 This is the same pattern at every level. No separate patient-resolution API is needed. SMART on FHIR is one way to convey this — the `patient` parameter in the token response is standard SMART behavior.
 
@@ -240,7 +240,7 @@ After resolving the source and authorizing at the source feed endpoint, the clie
 }
 ```
 
-`Patient/source-456` is the source-scoped patient reference from the token response at this endpoint (§4.1).
+`Patient/source-456` uses the source-scoped bare patient ID from the token response at this endpoint (§4.1), prefixed with `Patient/` for use as a FHIR reference in the filter.
 
 ### 4.7 Source feed notification
 
