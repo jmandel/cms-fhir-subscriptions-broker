@@ -78,25 +78,42 @@ The `patient-data-feed` topic is defined by this spec for the CMS-aligned networ
 
 Patient identity is resolved during authorization at every endpoint. The token response includes the patient context the client uses at that endpoint.
 
-- At the Home Broker, the token response includes a broker-scoped patient context (e.g., `"patient": "broker-123"`). The client uses this in its `new-care-relationship` subscription filter.
-- At a source feed endpoint, the token response includes a source-scoped patient context (e.g., `"patient": "source-456"`). The client uses this in its `patient-data-feed` subscription filter.
+- At the Home Broker, the token response includes a broker-scoped patient id (e.g., `"patient": "broker-123"`). The client uses this in its `new-care-relationship` subscription filter.
+- At a source feed endpoint, the token response includes a source-scoped patient id (e.g., `"patient": "source-456"`). The client uses this in its `patient-data-feed` subscription filter.
 
-This is the same pattern at every level. No separate patient-resolution API is needed. SMART on FHIR is one way to convey this — the `patient` parameter in the token response is standard SMART behavior.
+In both cases the token returns a bare resource id, not a relative reference. This is standard SMART on FHIR behavior — the `patient` parameter in the token response is a bare id. No separate patient-resolution API is needed.
 
 ### 4.2 Home Broker subscription
+
+The subscription follows the [Subscriptions R5 Backport IG](http://hl7.org/fhir/uv/subscriptions-backport/) format, filtered to the patient id from the token response (`broker-123`):
 
 ```json
 {
   "resourceType": "Subscription",
   "status": "requested",
-  "topic": "https://cms.gov/fhir/SubscriptionTopic/new-care-relationship",
-  "channelType": {
-    "system": "http://terminology.hl7.org/CodeSystem/subscription-channel-type",
-    "code": "rest-hook"
+  "reason": "Notify on new care relationships",
+  "criteria": "https://cms.gov/fhir/SubscriptionTopic/new-care-relationship",
+  "_criteria": {
+    "extension": [
+      {
+        "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-filter-criteria",
+        "valueString": "Patient?_id=broker-123"
+      }
+    ]
   },
-  "endpoint": "https://app.example.org/fhir/notifications",
-  "contentType": "application/fhir+json",
-  "content": "full-resource"
+  "channel": {
+    "type": "rest-hook",
+    "endpoint": "https://app.example.org/fhir/notifications",
+    "payload": "application/fhir+json",
+    "_payload": {
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-payload-content",
+          "valueCode": "full-resource"
+        }
+      ]
+    }
+  }
 }
 ```
 
@@ -217,16 +234,16 @@ After resolving the source and authorizing at the source feed endpoint, the clie
   "resourceType": "Subscription",
   "status": "requested",
   "reason": "Notify on encounter and appointment events",
-  "criteria": "http://hl7.org/fhir/us/core/SubscriptionTopic/patient-data-feed",
+  "criteria": "https://cms.gov/fhir/SubscriptionTopic/patient-data-feed",
   "_criteria": {
     "extension": [
       {
         "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-filter-criteria",
-        "valueString": "Encounter?patient=Patient/source-456"
+        "valueString": "Encounter?patient=source-456"
       },
       {
         "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-filter-criteria",
-        "valueString": "Appointment?patient=Patient/source-456"
+        "valueString": "Appointment?patient=source-456"
       }
     ]
   },
@@ -246,7 +263,7 @@ After resolving the source and authorizing at the source feed endpoint, the clie
 }
 ```
 
-`Patient/source-456` is the source-scoped patient reference from the token response at this endpoint (§4.1).
+`source-456` is the bare patient id from the token response at this endpoint (§4.1).
 
 ### 4.7 Source feed notification
 
