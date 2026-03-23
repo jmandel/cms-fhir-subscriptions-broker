@@ -18,7 +18,7 @@
 >
 > Valley Clinic hosts its own subscribable FHIR endpoint. Mercy Hospital Phoenix cannot, so the SW Care Broker hosts a `feed-endpoint` on its behalf. In both cases, the client does the same thing: authorize, subscribe, receive notifications.
 
-A client subscribes once at its home Broker to learn about new sources of care data. When notified, the client discovers the source through the network's existing RLS, selects source-specific `patient-data-feed` endpoints, and subscribes there for ongoing encounter and appointment data. Whether the source feed endpoint is provider-operated or broker-hosted, the client does the same thing. Peer Brokers signal each other about watched patients across network boundaries, multiplexing many local interests behind one peer subscription so cross-network signaling scales without per-client fan-out.
+On initial startup and authorization, the client uses the network's discovery mechanism (RLS or documented source directory) to enumerate all currently known sources for the patient, and subscribes to their `patient-data-feed` endpoints. In parallel, the client subscribes at its home Broker to the `new-care-relationship` topic — this is the incremental delta stream that signals when a *new* source becomes relevant after initial setup. When notified, the client discovers the source through the same discovery mechanism, selects the source-specific `patient-data-feed` endpoint, and subscribes there. Whether the source feed endpoint is provider-operated or broker-hosted, the client does the same thing. Peer Brokers signal each other about watched patients across network boundaries, multiplexing many local interests behind one peer subscription so cross-network signaling scales without per-client fan-out.
 
 ### 1.1 Three planes
 
@@ -33,16 +33,17 @@ A client subscribes once at its home Broker to learn about new sources of care d
 ![End-to-end flow](images/end-to-end-flow.svg)
 
 1. Client authorizes at its Home Broker. The token response includes a broker-scoped `patient` context.
-2. Client creates a `new-care-relationship` subscription at the Home Broker, filtered to that patient.
-3. The Home Broker ensures it has peer subscriptions with all relevant peer Brokers (§6.1), attaching an authority for this patient on each (§6.3). If peer subscriptions already exist, the Home Broker multiplexes onto them.
-4. A patient visits a provider. The provider's network detects the new care relationship internally (ADT, FHIR event, polling — mechanism is network-internal).
-5. If the provider is in the Home Network, the Home Broker learns about it directly. If the provider is in a peer network, the peer Broker signals the Home Broker via the `peer-network-events` subscription (§6.5).
-6. Home Broker sends the client a `new-care-relationship` notification. The notification may include correlation hints (`source-id`, `network-id`) and a catch-up cursor (`initial-since`).
-7. If the notification included `feed-endpoint`, the client can proceed directly. Otherwise, the client uses the network's existing RLS or documented source lookup to discover the `feed-endpoint`.
-8. Client authorizes at the source feed endpoint. The token response includes a source-scoped `patient` context.
-9. Client creates a `patient-data-feed` subscription at the source feed endpoint, filtered to that patient.
-10. If `initial-since` was included, client does a catch-up query from that time to pick up the triggering encounter.
-11. All subsequent encounters and appointments at that source arrive via the subscription. The Home Broker is not in the data path.
+2. Client uses the network's discovery mechanism (RLS or documented source directory) to enumerate all currently known sources for the patient. For each source, the client authorizes at the source feed endpoint and creates a `patient-data-feed` subscription (§4.5–4.6). This covers all already-known care relationships at startup.
+3. Client creates a `new-care-relationship` subscription at the Home Broker, filtered to that patient. From this point on, the subscription is the incremental delta stream for newly discovered sources.
+4. The Home Broker ensures it has peer subscriptions with all relevant peer Brokers (§6.1), attaching an authority for this patient on each (§6.3). If peer subscriptions already exist, the Home Broker multiplexes onto them.
+5. A patient visits a provider. The provider's network detects the new care relationship internally (ADT, FHIR event, polling — mechanism is network-internal).
+6. If the provider is in the Home Network, the Home Broker learns about it directly. If the provider is in a peer network, the peer Broker signals the Home Broker via the `peer-network-events` subscription (§6.5).
+7. Home Broker sends the client a `new-care-relationship` notification. The notification may include correlation hints (`source-id`, `network-id`) and a catch-up cursor (`initial-since`).
+8. If the notification included `feed-endpoint`, the client can proceed directly. Otherwise, the client uses the network's existing RLS or documented source lookup to discover the `feed-endpoint`.
+9. Client authorizes at the source feed endpoint. The token response includes a source-scoped `patient` context.
+10. Client creates a `patient-data-feed` subscription at the source feed endpoint, filtered to that patient.
+11. If `initial-since` was included, client does a catch-up query from that time to pick up the triggering encounter.
+12. All subsequent encounters and appointments at that source arrive via the subscription. The Home Broker is not in the data path.
 
 ---
 
@@ -335,7 +336,7 @@ The client always authorizes, subscribes, receives notifications, and reads back
 
 ### 5.3 Notification and discovery
 
-A rich notification that includes `feed-endpoint` is self-contained — the client can act on it directly. A thin notification is a trigger: "something changed — use the network's discovery to find the `feed-endpoint`." Discovery (RLS) remains the authoritative source for the full set of sources a patient has.
+A rich notification that includes `feed-endpoint` is self-contained — the client can act on it directly. A thin notification is a trigger: "something changed — use the network's discovery to find the `feed-endpoint`." Discovery (RLS) remains the authoritative source for the full set of sources a patient has. On initial startup, the client runs discovery to enumerate and subscribe to all currently known sources; the `new-care-relationship` subscription then serves as the incremental delta stream for sources that become relevant after that point.
 
 ### 5.4 Patient identity is resolved by authorization
 
