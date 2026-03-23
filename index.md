@@ -68,7 +68,7 @@ A client subscribes once at its home Broker to learn about new sources of care d
 | `http://hl7.org/fhir/us/core/SubscriptionTopic/patient-data-feed` | Data | Source feed endpoint | Client | `Encounter` or `Appointment` | `id-only` | Ongoing encounter and appointment notifications |
 | `https://cms.gov/fhir/SubscriptionTopic/peer-network-events` | Peer | Peer Broker | Peer Broker | `Parameters` | `full-resource` | Cross-network relationship signaling |
 
-The `patient-data-feed` topic is defined by this spec for the CMS-aligned network use case. It is not the same as the US Core Patient Data Feed topic, which covers a broader resource set. See §4.5 for details on Appointment support.
+The `patient-data-feed` topic uses the US Core canonical URI. This spec constrains it to `Encounter` and `Appointment` for the network use case; see §4.5 for details on Appointment support.
 
 ---
 
@@ -269,75 +269,42 @@ After resolving the source and authorizing at the source feed endpoint, the clie
 
 ### 4.7 Source feed notification
 
-Continuing the Valley Clinic (direct) example. The notification follows the [Subscriptions R5 Backport IG](http://hl7.org/fhir/uv/subscriptions-backport/) format, with a `Parameters` resource carrying the subscription status and trigger information:
+Continuing the Valley Clinic (direct) example. The notification uses the same `subscription-notification` bundle format as §4.3, with a `SubscriptionStatus` first entry. Because the subscription is `id-only`, there is no sibling focus entry — the focus reference points directly to the absolute Encounter URL:
 
 ```json
 {
   "resourceType": "Bundle",
-  "type": "history",
+  "type": "subscription-notification",
   "timestamp": "2026-03-23T16:02:00Z",
   "entry": [
     {
       "fullUrl": "urn:uuid:status-2",
       "resource": {
-        "resourceType": "Parameters",
-        "parameter": [
+        "resourceType": "SubscriptionStatus",
+        "status": "active",
+        "type": "event-notification",
+        "eventsSinceSubscriptionStart": 12,
+        "notificationEvent": [
           {
-            "name": "subscription",
-            "valueReference": {
-              "reference": "https://valley-clinic.example.org/fhir/Subscription/sub-feed-1"
+            "eventNumber": 12,
+            "timestamp": "2026-03-23T16:01:52Z",
+            "focus": {
+              "reference": "https://valley-clinic.example.org/fhir/Encounter/enc-789",
+              "type": "Encounter"
             }
-          },
-          {
-            "name": "topic",
-            "valueCanonical": "http://hl7.org/fhir/us/core/SubscriptionTopic/patient-data-feed"
-          },
-          {
-            "name": "status",
-            "valueCode": "active"
-          },
-          {
-            "name": "type",
-            "valueCode": "event-notification"
-          },
-          {
-            "name": "events-since-subscription-start",
-            "valueString": "12"
-          },
-          {
-            "name": "notification-event",
-            "part": [
-              {
-                "name": "event-number",
-                "valueString": "12"
-              },
-              {
-                "name": "timestamp",
-                "valueInstant": "2026-03-23T16:01:52Z"
-              },
-              {
-                "name": "focus",
-                "valueReference": {
-                  "reference": "https://valley-clinic.example.org/fhir/Encounter/enc-789"
-                }
-              },
-              {
-                "name": "trigger",
-                "valueCoding": {
-                  "system": "http://hl7.org/fhir/us/core/CodeSystem/trigger",
-                  "code": "feed-event"
-                }
-              }
-            ]
           }
-        ]
+        ],
+        "subscription": {
+          "reference": "https://valley-clinic.example.org/fhir/Subscription/sub-feed-1"
+        },
+        "topic": "http://hl7.org/fhir/us/core/SubscriptionTopic/patient-data-feed"
       }
     }
   ]
 }
 ```
 
-The client reads back the resource from the URL in `focus.valueReference.reference`, which is at the same endpoint it subscribed to. For a broker-hosted source like Mercy Hospital Phoenix, the URLs would be at the SW Care Broker's proxy (`broker.sw-care.example.org/fhir/sources/mercy-phoenix/...`) but the interaction is identical.
+The client reads back the resource from the absolute URL in `focus.reference`, which is at the same endpoint it subscribed to. For a broker-hosted source like Mercy Hospital Phoenix, the URLs would be at the SW Care Broker's proxy (`broker.sw-care.example.org/fhir/sources/mercy-phoenix/...`) but the interaction is identical.
 
 ---
 
@@ -402,113 +369,13 @@ These operations may be managed out-of-band, but the implementation SHALL preser
 
 An authority attachment tells a peer: "watch for this patient." The requesting broker supplies a `subject-handle` that it has already resolved locally — the sending peer echoes this handle in notifications without needing to coalesce across attachments.
 
-`POST [peer-base]/Subscription/{id}/$attach-authority`
-
-```json
-{
-  "resourceType": "Parameters",
-  "parameter": [
-    {
-      "name": "subject-handle",
-      "valueString": "patient-broker-a-123"
-    },
-    {
-      "name": "subject",
-      "resource": {
-        "resourceType": "Patient",
-        "identifier": [
-          {
-            "system": "https://payer.example.org/member-id",
-            "value": "ABC123"
-          }
-        ],
-        "name": [{ "family": "Smith", "given": ["Jane"] }],
-        "birthDate": "1980-02-01",
-        "gender": "female",
-        "address": [{ "postalCode": "78701" }]
-      }
-    },
-    {
-      "name": "authority-identifier",
-      "valueIdentifier": {
-        "system": "https://broker.az-health.example.org/fhir/authority-attachment-id",
-        "value": "auth-123"
-      }
-    },
-    {
-      "name": "supporting-artifact",
-      "part": [
-        { "name": "type", "valueString": "permission-ticket" },
-        { "name": "value", "valueString": "opaque-ticket-or-token" }
-      ]
-    }
-  ]
-}
-```
-
-Response:
-
-```json
-{
-  "resourceType": "Parameters",
-  "parameter": [
-    { "name": "subject-handle", "valueString": "patient-broker-a-123" },
-    { "name": "authority-count", "valueInteger": 3 }
-  ]
-}
-```
-
-**Fields:**
-
-| Field | Direction | Purpose |
-|-------|-----------|---------|
-| `subject-handle` | Request | Receiver-assigned patient handle. The sender echoes this in notifications. Multiple authorities for the same patient use the same handle. |
-| `subject` | Request | Patient demographics for cross-network matching |
-| `authority-identifier` | Request | Stable ID for this authority attachment |
-| `supporting-artifact` | Request | Optional typed artifact (e.g., permission ticket) |
-| `authority-count` | Response | How many authorities are behind this subject-handle |
-
-**Rules:**
-
-- Multiple authorities with the same `subject-handle` are treated as the same patient. The sender does not need to match demographics across attachments to determine this.
-- The sender uses the supplied demographics to match incoming events, and echoes the `subject-handle` in notifications.
-- `supporting-artifact` is optional and opaque unless a peer pair agrees on meaning out of band.
+The attach request carries the `subject-handle`, patient demographics for cross-network matching, a stable `authority-identifier`, and an optional `supporting-artifact` (e.g., a permission ticket). Multiple authorities with the same `subject-handle` are treated as the same patient — the sender does not need to match demographics across attachments to determine this. The response confirms the handle and returns an `authority-count`.
 
 ### 6.4 Detaching an authority
 
-`POST [peer-base]/Subscription/{id}/$detach-authority`
+Detach removes one authority by its `authority-identifier`. The response returns the updated `authority-count`. When the count reaches zero, the subject is no longer active and notifications stop. No separate watch-inspection API is required — each peer maintains its own local authority registry keyed by `subject-handle` and `authority-identifier`.
 
-```json
-{
-  "resourceType": "Parameters",
-  "parameter": [
-    {
-      "name": "authority-identifier",
-      "valueIdentifier": {
-        "system": "https://broker.az-health.example.org/fhir/authority-attachment-id",
-        "value": "auth-123"
-      }
-    }
-  ]
-}
-```
-
-Response:
-
-```json
-{
-  "resourceType": "Parameters",
-  "parameter": [
-    { "name": "subject-handle", "valueString": "patient-broker-a-123" },
-    { "name": "authority-count", "valueInteger": 2 }
-  ]
-}
-```
-
-**Rules:**
-
-- When `authority-count` reaches zero, the subject is no longer active. Notifications stop.
-- No separate watch-inspection API is required. Each peer maintains its own local authority registry keyed by `subject-handle` and `authority-identifier`.
+See [authority-api.md](authority-api.md) for the full `$attach-authority` and `$detach-authority` request/response definitions, field tables, and rules.
 
 ### 6.5 Peer notification: new-care-relationship-exists
 
@@ -575,24 +442,30 @@ When a source network detects a new care relationship for a watched subject, it 
 
 | Field | Purpose |
 |-------|---------|
-| `kind` | Event type. Currently only `new-care-relationship-exists`; reserved for future event types. |
+| `kind` | Event type: `new-care-relationship-exists` (§6.5) or `source-data-event` (§6.6). |
 | `subject-handle` | Receiver-assigned patient handle, echoed from the attach request |
 
-### 6.6 Aggregation rules
+### 6.6 Peer notification: source-data-event
+
+In addition to the required `new-care-relationship-exists` event, a sending peer MAY also send a `source-data-event` to forward the triggering clinical resource (Encounter or Appointment), the source Organization, and optionally the source's FHIR Endpoint(s). A `source-data-event` does not replace `new-care-relationship-exists` — the relationship event is always sent first or alongside it. See [source-data-event.md](source-data-event.md) for the full message definition.
+
+### 6.7 Aggregation rules
 
 - A peer pair uses one multiplexed subscription.
 - Multiple authorities with the same `subject-handle` represent the same patient. The sender echoes the handle in notifications without needing to match demographics across attachments.
-- A sending peer SHOULD emit at most one `new-care-relationship-exists` event per newly relevant source per `subject-handle`.
+- A sending peer SHOULD emit at most one `new-care-relationship-exists` event per newly relevant source per `subject-handle`. It MAY also send a `source-data-event` for the same source (§6.6).
 - A sending peer SHALL stop all notifications for a `subject-handle` when its authority count reaches zero.
 - A receiving peer SHALL maintain its own local authority registry. It SHALL NOT require the sender to repeat authority details in every notification.
 - If 100 clients at the receiving broker all care about the same patient, they share one `subject-handle`, and the peer link carries one event, not 100.
 
-### 6.7 Translation to client notifications
+### 6.8 Translation to client notifications
 
 When translating a peer `new-care-relationship-exists` event into a client `new-care-relationship` notification:
 
 - Keep `source-id`, `network-id`, and `feed-endpoint` if present and useful.
 - Strip `subject-handle` and peer-side authority details.
+
+For `source-data-event` translation, see [source-data-event.md](source-data-event.md).
 
 The client sees the same notification shape regardless of whether the Home Broker learned about the source locally or from a peer.
 
@@ -607,7 +480,7 @@ The client sees the same notification shape regardless of whether the Home Broke
 - Source feed endpoint contract (`patient-data-feed`, read-back, catch-up)
 - Multiplexed peer subscription and `peer-network-events` topic
 - `$attach-authority` and `$detach-authority` operations
-- Peer `new-care-relationship-exists` notification shape
+- Peer `new-care-relationship-exists` notification shape (plus optional `source-data-event`; see [source-data-event.md](source-data-event.md))
 
 ### Out of scope
 
@@ -649,3 +522,4 @@ This spec does not define how discovery works, but it does require that discover
 - SHALL aggregate authorities by `subject-handle`
 - SHALL stop peer notifications when authority count reaches zero
 - SHALL use the `peer-network-events` notification shapes defined here
+- MAY support `source-data-event` notifications; if supported, SHALL include valid `focus-resource` and `source-organization`
