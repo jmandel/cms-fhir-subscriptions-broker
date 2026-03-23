@@ -36,7 +36,7 @@ A client subscribes once at its home Broker to learn about new sources of care d
 2. Client creates a `new-care-relationship` subscription at the Home Broker, filtered to that patient.
 3. The Home Broker ensures it has peer subscriptions with all relevant peer Brokers (§6.1), attaching an authority for this patient on each (§6.3). If peer subscriptions already exist, the Home Broker multiplexes onto them.
 4. A patient visits a provider. The provider's network detects the new care relationship internally (ADT, FHIR event, polling — mechanism is network-internal).
-5. If the provider is in the Home Network, the Home Broker learns about it directly. If the provider is in a peer network, the peer Broker signals the Home Broker via the `peer-network-events` channel (§6.5).
+5. If the provider is in the Home Network, the Home Broker learns about it directly. If the provider is in a peer network, the peer Broker signals the Home Broker via the `peer-network-events` subscription (§6.5).
 6. Home Broker sends the client a `new-care-relationship` notification. The notification may include correlation hints (`source-id`, `network-id`) and a catch-up cursor (`initial-since`).
 7. If the notification included `feed-endpoint`, the client can proceed directly. Otherwise, the client uses the network's existing RLS or documented source lookup to discover the `feed-endpoint`.
 8. Client authorizes at the source feed endpoint. The token response includes a source-scoped `patient` context.
@@ -307,7 +307,7 @@ Patient identity is resolved during the authorization step at every endpoint (§
 
 ### 6.1 One multiplexed peer subscription
 
-Each peer pair uses one long-lived `Subscription` for the `peer-network-events` topic. This single channel carries notifications for all watched subjects between the two Brokers.
+Each peer pair uses one long-lived `Subscription` for the `peer-network-events` topic. This single subscription carries notifications for all watched subjects between the two Brokers.
 
 ```json
 {
@@ -454,7 +454,7 @@ Response:
 
 ### 6.5 Peer notification: new-care-relationship-exists
 
-When a source network detects a new care relationship for a watched subject, it sends a `new-care-relationship-exists` event on the peer channel.
+When a source network detects a new care relationship for a watched subject, it sends a `new-care-relationship-exists` event on the peer subscription.
 
 ```json
 {
