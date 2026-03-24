@@ -87,15 +87,8 @@ At least one of `encounter` or `appointment` SHOULD be present. Both may be incl
 - `source-endpoint`, if present, SHALL be a valid Endpoint resource associated with the source organization.
 - The receiving broker MAY use the forwarded resources to enrich client notifications, pre-populate caches, or skip discovery steps.
 
-## Translation to client notifications
+## Client visibility
 
-When translating a `visit-event` for client delivery, forward these fields if present:
+A `visit-event` that accompanies a `new-care-relationship` may enrich the resulting client notification — the receiving broker MAY use the forwarded `source-organization` or `feed-endpoint` when constructing the client's `new-care-relationship` notification.
 
-- `source-organization`
-- `feed-endpoint`
-
-The receiving broker sets `client-action` based on whether it can resolve a `feed-endpoint`, and MAY enrich either a `subscribe` or `rediscover` notification with forwarded data.
-
-Peer-internal fields (`kind`, `subject-handle`) and inline resources (`encounter`, `appointment`, `source-endpoint`) are not forwarded to the client. The receiving broker MAY use the inline resources internally.
-
-The client sees the same `new-care-relationship` notification shape regardless of whether the broker received a `visit-event` from the peer.
+A standalone `visit-event` for an already-established source does **not** generate a client notification. The client already has a `patient-data-feed` subscription at that source and receives data directly. Standalone `visit-event` data is for the receiving broker's internal use only (e.g., cache warming, analytics).

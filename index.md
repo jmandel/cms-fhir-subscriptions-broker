@@ -28,9 +28,11 @@ A client subscribes once at its home Broker to learn about new sources of care d
 | **Data** | Ongoing encounter and appointment feed | Source feed endpoint → Client |
 | **Peer** | Cross-network relationship signaling | Broker ↔ Broker |
 
-### 1.2 End-to-end flow
+### 1.2 End-to-end flow (client perspective)
 
-![End-to-end flow](images/end-to-end-flow.svg)
+![End-to-end flow — client perspective](images/end-to-end-flow.svg)
+
+> This diagram shows the client-facing flow. The Home Broker may learn about new sources locally or via the peer plane (§5); the client experience is the same either way.
 
 1. Client authorizes at its Home Broker. The token response includes a broker-scoped `patient` context.
 2. Client creates a `new-care-relationship` subscription at the Home Broker, filtered to that patient.
@@ -70,9 +72,11 @@ A client subscribes once at its home Broker to learn about new sources of care d
 
 **Filter parameters:**
 
+These are topic-defined filter parameters used in the Subscriptions R5 Backport `backport-filter-criteria` extension, not native FHIR search on the focus resource type.
+
 | Topic | Filter | Value | Notes |
 |-------|--------|-------|-------|
-| `new-care-relationship` | `patient` | Broker-scoped patient id from token response | Required |
+| `new-care-relationship` | `patient` | Broker-scoped patient id from token response | Required; expressed as `Parameters?patient={id}` |
 | `patient-data-feed` | `patient` | Source-scoped patient id from token response | Required; applied per resource type (`Encounter?patient=`, `Appointment?patient=`) |
 | `peer-network-events` | — | — | No filters; multiplexed across all watched subjects |
 
@@ -199,21 +203,54 @@ Every `new-care-relationship` notification SHALL include `client-action`. Define
 
 ```json
 {
-  "resourceType": "Parameters",
-  "parameter": [
-    { "name": "client-action", "valueCode": "rediscover" },
-    { "name": "discovery-hint", "valueString": "opaque-short-lived-token" },
+  "resourceType": "Bundle",
+  "type": "subscription-notification",
+  "timestamp": "2026-03-23T15:20:00Z",
+  "entry": [
     {
-      "name": "source-organization",
+      "fullUrl": "urn:uuid:status-1",
       "resource": {
-        "resourceType": "Organization",
-        "identifier": [
+        "resourceType": "SubscriptionStatus",
+        "status": "active",
+        "type": "event-notification",
+        "eventsSinceSubscriptionStart": 7,
+        "notificationEvent": [
           {
-            "system": "http://hl7.org/fhir/sid/us-npi",
-            "value": "1234567890"
+            "eventNumber": 7,
+            "timestamp": "2026-03-23T15:19:45Z",
+            "focus": {
+              "reference": "urn:uuid:params-1",
+              "type": "Parameters"
+            }
           }
         ],
-        "name": "Mercy Hospital Phoenix"
+        "subscription": {
+          "reference": "https://broker.az-health.example.org/fhir/Subscription/sub-rel-1"
+        },
+        "topic": "https://cms.gov/fhir/SubscriptionTopic/new-care-relationship"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:params-1",
+      "resource": {
+        "resourceType": "Parameters",
+        "parameter": [
+          { "name": "client-action", "valueCode": "rediscover" },
+          { "name": "discovery-hint", "valueString": "opaque-short-lived-token" },
+          {
+            "name": "source-organization",
+            "resource": {
+              "resourceType": "Organization",
+              "identifier": [
+                {
+                  "system": "http://hl7.org/fhir/sid/us-npi",
+                  "value": "1234567890"
+                }
+              ],
+              "name": "Mercy Hospital Phoenix"
+            }
+          }
+        ]
       }
     }
   ]
@@ -256,7 +293,7 @@ Every source feed endpoint SHALL support:
 - `Subscription` create, read, and delete for the `patient-data-feed` topic
 - `id-only` notifications with absolute resource URLs
 - `read` on supported resource types
-- Catch-up search for the patient (clients use their own lookback window)
+- Catch-up search for the patient using standard FHIR search (clients use their own lookback window; specific search parameters are endpoint-documented)
 
 **Encounter** support is required. Every endpoint SHALL support Encounter subscription filters, `id-only` Encounter notifications, `read` on Encounter, and Encounter catch-up search.
 
@@ -501,7 +538,7 @@ When translating a peer `new-care-relationship` event into a client `new-care-re
 - MAY add `discovery-hint` when `client-action` is `rediscover`.
 - Strips `kind`, `subject-handle`, and any other peer-internal fields.
 
-For `visit-event` translation, see [visit-event.md](visit-event.md).
+A `visit-event` that accompanies a `new-care-relationship` may enrich the client notification. A standalone `visit-event` for an already-established source does not generate a client notification — it is for broker-internal use only. See [visit-event.md](visit-event.md).
 
 The client sees the same notification shape regardless of whether the Home Broker learned about the source locally or from a peer.
 
