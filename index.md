@@ -451,13 +451,14 @@ When a source network detects a new care relationship for a watched subject, it 
 
 ### 5.6 Peer notification: visit-event
 
-In addition to the required `new-care-relationship` event, a sending peer MAY also send a `visit-event` to forward the triggering clinical resource (Encounter or Appointment), the source Organization, and optionally the source's FHIR Endpoint(s). A `visit-event` does not replace `new-care-relationship` — the relationship event is always sent first or alongside it. See [visit-event.md](visit-event.md) for the full message definition.
+A sending peer MAY send `visit-event` notifications to forward an Encounter or Appointment resource, the source Organization, and optionally the source's FHIR Endpoint(s). A `visit-event` may accompany a `new-care-relationship` (for the triggering encounter) or be sent independently for subsequent visits at sources with an already-established relationship. A `visit-event` does not replace `new-care-relationship` — new sources still require a relationship event. See [visit-event.md](visit-event.md) for the full message definition.
 
 ### 5.7 Aggregation rules
 
 - A peer pair uses one multiplexed subscription.
 - Multiple authorities with the same `subject-handle` represent the same patient. The sender echoes the handle in notifications without needing to match demographics across attachments.
-- A sending peer SHOULD emit at most one `new-care-relationship` event per newly relevant source per `subject-handle`. It MAY also send a `visit-event` for the same source (§5.6).
+- A sending peer SHOULD emit at most one `new-care-relationship` event per newly relevant source per `subject-handle`.
+- A sending peer MAY send `visit-event` notifications for any visit at a watched source — whether or not the source is new (§5.6).
 - A sending peer SHALL stop all notifications for a `subject-handle` when its authority count reaches zero.
 - A receiving peer SHALL maintain its own local authority registry. It SHALL NOT require the sender to repeat authority details in every notification.
 - If 100 clients at the receiving broker all care about the same patient, they share one `subject-handle`, and the peer link carries one event, not 100.

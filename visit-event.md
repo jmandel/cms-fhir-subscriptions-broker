@@ -4,13 +4,13 @@
 
 ## Overview
 
-A sending peer MAY send a `visit-event` alongside a `new-care-relationship` event to forward the triggering clinical resource, the source Organization, and optionally the source's FHIR Endpoint(s). This lets the receiving broker act on richer data without a separate lookup.
+A sending peer MAY send `visit-event` notifications to forward an Encounter or Appointment resource, the source Organization, and optionally the source's FHIR Endpoint(s). This lets the receiving broker act on richer data without a separate lookup.
 
-A `visit-event` does not replace `new-care-relationship`. The relationship event SHALL always be sent; the data event is an optional supplement. This avoids requiring the receiving broker to infer relationship state from data events.
+A `visit-event` may accompany a `new-care-relationship` event (for the triggering encounter at a new source) or be sent independently for subsequent visits at sources with an already-established relationship. It does not replace `new-care-relationship` — new sources still require a relationship event.
 
 ## Parameters payload
 
-The notification is delivered in the same `subscription-notification` bundle as the `new-care-relationship` event (see §5.5 of the main spec), differing only in the `Parameters` payload:
+The notification uses the same `subscription-notification` bundle format as §5.5, differing only in the `Parameters` payload:
 
 ```json
 {
@@ -93,7 +93,8 @@ Shared peer fields (`kind`, `subject-handle`, `source-id`, `network-id`) follow 
 
 ## Rules
 
-- A `visit-event` SHALL NOT be sent without a corresponding `new-care-relationship` for the same source and `subject-handle`. The relationship event establishes the relationship; the data event supplements it.
+- For a new source, a `new-care-relationship` event SHALL be sent; a `visit-event` MAY accompany it but does not replace it.
+- For an already-established source, a `visit-event` MAY be sent independently.
 - `focus-resource` SHALL be a valid Encounter or Appointment resource.
 - `source-organization` SHALL be a valid Organization resource representing the care source.
 - `source-endpoint`, if present, SHALL be a valid Endpoint resource associated with the source organization.
