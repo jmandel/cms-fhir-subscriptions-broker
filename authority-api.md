@@ -32,10 +32,7 @@
     },
     {
       "name": "authority-identifier",
-      "valueIdentifier": {
-        "system": "https://broker.az-health.example.org/fhir/authority-attachment-id",
-        "value": "auth-123"
-      }
+      "valueString": "auth-123"
     },
     {
       "name": "supporting-artifact",
@@ -86,10 +83,7 @@ Response:
   "parameter": [
     {
       "name": "authority-identifier",
-      "valueIdentifier": {
-        "system": "https://broker.az-health.example.org/fhir/authority-attachment-id",
-        "value": "auth-123"
-      }
+      "valueString": "auth-123"
     }
   ]
 }

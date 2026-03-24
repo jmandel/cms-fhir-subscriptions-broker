@@ -68,6 +68,14 @@ A client subscribes once at its home Broker to learn about new sources of care d
 | `http://hl7.org/fhir/us/core/SubscriptionTopic/patient-data-feed` | Data | Source feed endpoint | Client | `Encounter` or `Appointment` | `id-only` | Ongoing encounter and appointment notifications |
 | `https://cms.gov/fhir/SubscriptionTopic/peer-network-events` | Peer | Peer Broker | Peer Broker | `Parameters` | `full-resource` | Cross-network relationship signaling |
 
+**Filter parameters:**
+
+| Topic | Filter | Value | Notes |
+|-------|--------|-------|-------|
+| `new-care-relationship` | `patient` | Broker-scoped patient id from token response | Required |
+| `patient-data-feed` | `patient` | Source-scoped patient id from token response | Required; applied per resource type (`Encounter?patient=`, `Appointment?patient=`) |
+| `peer-network-events` | — | — | No filters; multiplexed across all watched subjects |
+
 The `patient-data-feed` topic uses the US Core canonical URI. This spec constrains it to `Encounter` and `Appointment` for the network use case; see §4.5 for details on Appointment support.
 
 ---
@@ -97,7 +105,7 @@ The subscription follows the [Subscriptions R5 Backport IG](http://hl7.org/fhir/
     "extension": [
       {
         "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-filter-criteria",
-        "valueString": "Patient?_id=broker-123"
+        "valueString": "Parameters?patient=broker-123"
       }
     ]
   },
@@ -159,14 +167,14 @@ When a new source becomes relevant for the patient, the Home Broker sends a noti
             "name": "source-id",
             "valueIdentifier": {
               "system": "https://cms.gov/fhir/sid/source-id",
-              "value": "urn:source:mercy-phoenix"
+              "value": "urn:example:source:mercy-phoenix"
             }
           },
           {
             "name": "network-id",
             "valueIdentifier": {
               "system": "https://cms.gov/fhir/sid/network-id",
-              "value": "urn:network:sw-care"
+              "value": "urn:example:network:sw-care"
             }
           },
           {
@@ -421,14 +429,14 @@ When a source network detects a new care relationship for a watched subject, it 
             "name": "source-id",
             "valueIdentifier": {
               "system": "https://cms.gov/fhir/sid/source-id",
-              "value": "urn:source:mercy-phoenix"
+              "value": "urn:example:source:mercy-phoenix"
             }
           },
           {
             "name": "network-id",
             "valueIdentifier": {
               "system": "https://cms.gov/fhir/sid/network-id",
-              "value": "urn:network:sw-care"
+              "value": "urn:example:network:sw-care"
             }
           },
         ]

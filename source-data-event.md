@@ -22,14 +22,14 @@ The notification is delivered in the same `subscription-notification` bundle as 
       "name": "source-id",
       "valueIdentifier": {
         "system": "https://cms.gov/fhir/sid/source-id",
-        "value": "urn:source:mercy-phoenix"
+        "value": "urn:example:source:mercy-phoenix"
       }
     },
     {
       "name": "network-id",
       "valueIdentifier": {
         "system": "https://cms.gov/fhir/sid/network-id",
-        "value": "urn:network:sw-care"
+        "value": "urn:example:network:sw-care"
       }
     },
     {
