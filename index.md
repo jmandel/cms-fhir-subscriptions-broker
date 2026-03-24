@@ -434,11 +434,11 @@ These operations may be managed out-of-band, but the implementation SHALL preser
 
 An authority attachment tells a peer: "watch for this patient." The requesting broker supplies a `subject-handle` that it has already resolved locally — the sending peer echoes this handle in notifications without needing to coalesce across attachments.
 
-The attach request carries the `subject-handle`, patient demographics for cross-network matching, a stable `authority-id`, and an optional `supporting-artifact` (e.g., a permission ticket). Multiple authorities with the same `subject-handle` are treated as the same patient — the sender does not need to match demographics across attachments to determine this. The response confirms the handle and returns an `authority-count`.
+The attach request carries the `subject-handle`, patient demographics for cross-network matching, a stable `authority-id`, and an optional `supporting-artifact` (e.g., a permission ticket). Multiple authorities with the same `subject-handle` are treated as the same patient — the sender does not need to match demographics across attachments to determine this. The response confirms the handle and returns an `authority-count`. Attaching a duplicate `authority-id` is a no-op.
 
 ### 5.4 Detaching an authority
 
-Detach removes one authority by its `authority-id`. The response returns the updated `authority-count`. When the count reaches zero, the subject is no longer active and notifications stop. No separate watch-inspection API is required — each peer maintains its own local authority registry keyed by `subject-handle` and `authority-id`.
+Detach removes one authority by its `authority-id`. The response returns the updated `authority-count`. When the count reaches zero, the subject is no longer active and notifications stop. Detaching an unknown or already-removed `authority-id` returns success with the current count. No separate watch-inspection API is required — each peer maintains its own local authority registry keyed by `subject-handle` and `authority-id`.
 
 See [authority-api.md](authority-api.md) for the full `$attach-authority` and `$detach-authority` request/response definitions, field tables, and rules.
 

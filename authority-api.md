@@ -78,6 +78,7 @@ Response:
 - Multiple authorities with the same `subject-handle` are treated as the same patient. The sender does not need to match demographics across attachments to determine this.
 - The sender uses the supplied demographics to match incoming events, and echoes the `subject-handle` in notifications.
 - `supporting-artifact` is optional and opaque unless a peer pair agrees on meaning out of band.
+- **Idempotency:** If `$attach-authority` is called with an `authority-id` that is already attached, the server SHALL treat it as a no-op and return the current `authority-count`. It SHALL NOT create a duplicate attachment.
 
 ## $detach-authority
 
@@ -110,4 +111,5 @@ Response:
 ### Rules
 
 - When `authority-count` reaches zero, the subject is no longer active. Notifications stop.
+- **Idempotency:** If `$detach-authority` is called with an `authority-id` that is unknown or already removed, the server SHALL return success with the current `authority-count`. It SHALL NOT treat this as an error.
 - No separate watch-inspection API is required. Each peer maintains its own local authority registry keyed by `subject-handle` and `authority-id`.
