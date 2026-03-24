@@ -206,7 +206,7 @@ function getSteps(): Step[] {
 
     { id: "mercy-peer", plane: "peer",
       title: "Peer notification → Home",
-      desc: "SW Care Network sends a new-care-relationship-exists peer notification to AZ Health Network.",
+      desc: "SW Care Network sends a new-care-relationship peer notification to AZ Health Network.",
       from: "SW Care Network", to: "AZ Health Network",
       run: async () => {
         await net().peerBroker.sendPeerNotification("urn:example:source:mercy-phoenix", "urn:example:network:sw-care", "broker-123");

@@ -1,6 +1,6 @@
 # Authority Attach/Detach API
 
-**Parent spec:** [index.md](index.md) §6.3–6.4
+**Parent spec:** [index.md](index.md) §5.3–5.4
 
 ## $attach-authority
 

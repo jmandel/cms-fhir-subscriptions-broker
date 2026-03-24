@@ -1,16 +1,16 @@
 # Peer Notification: source-data-event
 
-**Parent spec:** [index.md](index.md) §6.6
+**Parent spec:** [index.md](index.md) §5.6
 
 ## Overview
 
-A sending peer MAY send a `source-data-event` alongside a `new-care-relationship-exists` event to forward the triggering clinical resource, the source Organization, and optionally the source's FHIR Endpoint(s). This lets the receiving broker act on richer data without a separate lookup.
+A sending peer MAY send a `source-data-event` alongside a `new-care-relationship` event to forward the triggering clinical resource, the source Organization, and optionally the source's FHIR Endpoint(s). This lets the receiving broker act on richer data without a separate lookup.
 
-A `source-data-event` does not replace `new-care-relationship-exists`. The relationship event SHALL always be sent; the data event is an optional supplement. This avoids requiring the receiving broker to infer relationship state from data events.
+A `source-data-event` does not replace `new-care-relationship`. The relationship event SHALL always be sent; the data event is an optional supplement. This avoids requiring the receiving broker to infer relationship state from data events.
 
 ## Parameters payload
 
-The notification is delivered in the same `subscription-notification` bundle as the `new-care-relationship-exists` event (see §6.5 of the main spec), differing only in the `Parameters` payload:
+The notification is delivered in the same `subscription-notification` bundle as the `new-care-relationship` event (see §5.5 of the main spec), differing only in the `Parameters` payload:
 
 ```json
 {
@@ -82,7 +82,7 @@ The notification is delivered in the same `subscription-notification` bundle as 
 
 ## Fields
 
-Shared peer fields (`kind`, `subject-handle`, `source-id`, `network-id`) follow the same rules as `new-care-relationship-exists`.
+Shared peer fields (`kind`, `subject-handle`, `source-id`, `network-id`) follow the same rules as `new-care-relationship`.
 
 | Field | Optionality | Purpose |
 |-------|-------------|---------|
@@ -93,7 +93,7 @@ Shared peer fields (`kind`, `subject-handle`, `source-id`, `network-id`) follow 
 
 ## Rules
 
-- A `source-data-event` SHALL NOT be sent without a corresponding `new-care-relationship-exists` for the same source and `subject-handle`. The relationship event establishes the relationship; the data event supplements it.
+- A `source-data-event` SHALL NOT be sent without a corresponding `new-care-relationship` for the same source and `subject-handle`. The relationship event establishes the relationship; the data event supplements it.
 - `focus-resource` SHALL be a valid Encounter or Appointment resource.
 - `source-organization` SHALL be a valid Organization resource representing the care source.
 - `source-endpoint`, if present, SHALL be a valid Endpoint resource associated with the source organization.

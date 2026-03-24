@@ -316,7 +316,7 @@ export class Broker {
   // Peer broker: notify home broker of a new care relationship
   async sendPeerNotification(sourceId: string, networkId: string, subjectHandle: string) {
     const peerParams: any = { resourceType: "Parameters", parameter: [
-      { name: "kind", valueCode: "new-care-relationship-exists" },
+      { name: "kind", valueCode: "new-care-relationship" },
       { name: "subject-handle", valueString: subjectHandle },
       { name: "source-id", valueIdentifier: { system: "https://cms.gov/fhir/sid/source-id", value: sourceId } },
       { name: "network-id", valueIdentifier: { system: "https://cms.gov/fhir/sid/network-id", value: networkId } },

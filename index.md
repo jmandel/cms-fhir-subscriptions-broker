@@ -34,9 +34,9 @@ A client subscribes once at its home Broker to learn about new sources of care d
 
 1. Client authorizes at its Home Broker. The token response includes a broker-scoped `patient` context.
 2. Client creates a `new-care-relationship` subscription at the Home Broker, filtered to that patient.
-3. The Home Broker ensures it has peer subscriptions with all relevant peer Brokers (§6.1), attaching an authority for this patient on each (§6.3). If peer subscriptions already exist, the Home Broker multiplexes onto them.
+3. The Home Broker ensures it has peer subscriptions with all relevant peer Brokers (§5.1), attaching an authority for this patient on each (§5.3). If peer subscriptions already exist, the Home Broker multiplexes onto them.
 4. A patient visits a provider. The provider's network detects the new care relationship internally (ADT, FHIR event, polling — mechanism is network-internal).
-5. If the provider is in the Home Network, the Home Broker learns about it directly. If the provider is in a peer network, the peer Broker signals the Home Broker via the `peer-network-events` subscription (§6.5).
+5. If the provider is in the Home Network, the Home Broker learns about it directly. If the provider is in a peer network, the peer Broker signals the Home Broker via the `peer-network-events` subscription (§5.5).
 6. Home Broker sends the client a `new-care-relationship` notification. The notification may include the `feed-endpoint` and correlation fields (`source-id`, `network-id`).
 7. If the notification included `feed-endpoint`, the client can proceed directly. Otherwise, the client uses the network's existing RLS or documented source lookup to discover the `feed-endpoint`.
 8. Client authorizes at the source feed endpoint. The token response includes a source-scoped `patient` context.
@@ -316,29 +316,9 @@ The client reads back the resource from the absolute URL in `focus.reference`, w
 
 ---
 
-## 5. Core Design Rules
+## 5. Peer Model
 
-### 5.1 One actionable locator
-
-The only locator the client needs for a source is `feed-endpoint`. There is no separate connection URL or connection resource.
-
-### 5.2 One client experience
-
-The client always authorizes, subscribes, receives notifications, and reads back resources at a source feed endpoint. Whether that endpoint is provider-operated or broker-hosted is invisible to the client.
-
-### 5.3 Notification and discovery
-
-A rich notification that includes `feed-endpoint` is self-contained — the client can act on it directly. A thin notification is a trigger: "something changed — use the network's discovery to find the `feed-endpoint`." Discovery (RLS) remains the authoritative source for the full set of sources a patient has.
-
-### 5.4 Patient identity is resolved by authorization
-
-Patient identity is resolved during the authorization step at every endpoint (§4.1). The token response includes the patient context the client uses for subscription filters and queries. No separate patient-resolution API is needed.
-
----
-
-## 6. Peer Model
-
-### 6.1 One multiplexed peer subscription
+### 5.1 One multiplexed peer subscription
 
 Each peer pair uses one long-lived `Subscription` for the `peer-network-events` topic. This single subscription carries notifications for all watched subjects between the two Brokers.
 
@@ -366,7 +346,7 @@ Each peer pair uses one long-lived `Subscription` for the `peer-network-events` 
 
 The peer does not create one subscription per watched patient or per downstream client.
 
-### 6.2 Peer API surface
+### 5.2 Peer API surface
 
 | Operation | Purpose |
 |-----------|---------|
@@ -380,21 +360,21 @@ Notification delivery uses standard `subscription-notification` bundles to `Subs
 
 These operations may be managed out-of-band, but the implementation SHALL preserve the same logical semantics: one multiplexed stream, per-authority attach/detach, and the notification shapes defined below.
 
-### 6.3 Attaching an authority
+### 5.3 Attaching an authority
 
 An authority attachment tells a peer: "watch for this patient." The requesting broker supplies a `subject-handle` that it has already resolved locally — the sending peer echoes this handle in notifications without needing to coalesce across attachments.
 
 The attach request carries the `subject-handle`, patient demographics for cross-network matching, a stable `authority-identifier`, and an optional `supporting-artifact` (e.g., a permission ticket). Multiple authorities with the same `subject-handle` are treated as the same patient — the sender does not need to match demographics across attachments to determine this. The response confirms the handle and returns an `authority-count`.
 
-### 6.4 Detaching an authority
+### 5.4 Detaching an authority
 
 Detach removes one authority by its `authority-identifier`. The response returns the updated `authority-count`. When the count reaches zero, the subject is no longer active and notifications stop. No separate watch-inspection API is required — each peer maintains its own local authority registry keyed by `subject-handle` and `authority-identifier`.
 
 See [authority-api.md](authority-api.md) for the full `$attach-authority` and `$detach-authority` request/response definitions, field tables, and rules.
 
-### 6.5 Peer notification: new-care-relationship-exists
+### 5.5 Peer notification: new-care-relationship
 
-When a source network detects a new care relationship for a watched subject, it sends a `new-care-relationship-exists` event on the peer subscription.
+When a source network detects a new care relationship for a watched subject, it sends a `new-care-relationship` event on the peer subscription.
 
 ```json
 {
@@ -430,7 +410,7 @@ When a source network detects a new care relationship for a watched subject, it 
       "resource": {
         "resourceType": "Parameters",
         "parameter": [
-          { "name": "kind", "valueCode": "new-care-relationship-exists" },
+          { "name": "kind", "valueCode": "new-care-relationship" },
           { "name": "subject-handle", "valueString": "patient-broker-a-123" },
           {
             "name": "source-id",
@@ -461,31 +441,35 @@ When a source network detects a new care relationship for a watched subject, it 
 
 | Field | Optionality | Purpose |
 |-------|-------------|---------|
-| `kind` | SHALL | Event type: `new-care-relationship-exists` (§6.5) or `source-data-event` (§6.6). |
+| `kind` | SHALL | Event type: `new-care-relationship` (§5.5) or `source-data-event` (§5.6). |
 | `subject-handle` | SHALL | Caller-assigned patient handle from the attach request; the sending peer echoes it so the receiver can route notifications to the right local patient |
 | `source-id` | SHOULD | Stable source key, same as in client notifications (§4.3) |
 | `network-id` | SHOULD | Stable network key, same as in client notifications (§4.3) |
 | `feed-endpoint` | SHOULD | FHIR base URL where the client can subscribe for `patient-data-feed` (Encounter and Appointment feeds via the US Core Patient Data Feed topic) |
 
-### 6.6 Peer notification: source-data-event
+### 5.6 Peer notification: source-data-event
 
-In addition to the required `new-care-relationship-exists` event, a sending peer MAY also send a `source-data-event` to forward the triggering clinical resource (Encounter or Appointment), the source Organization, and optionally the source's FHIR Endpoint(s). A `source-data-event` does not replace `new-care-relationship-exists` — the relationship event is always sent first or alongside it. See [source-data-event.md](source-data-event.md) for the full message definition.
+In addition to the required `new-care-relationship` event, a sending peer MAY also send a `source-data-event` to forward the triggering clinical resource (Encounter or Appointment), the source Organization, and optionally the source's FHIR Endpoint(s). A `source-data-event` does not replace `new-care-relationship` — the relationship event is always sent first or alongside it. See [source-data-event.md](source-data-event.md) for the full message definition.
 
-### 6.7 Aggregation rules
+### 5.7 Aggregation rules
 
 - A peer pair uses one multiplexed subscription.
 - Multiple authorities with the same `subject-handle` represent the same patient. The sender echoes the handle in notifications without needing to match demographics across attachments.
-- A sending peer SHOULD emit at most one `new-care-relationship-exists` event per newly relevant source per `subject-handle`. It MAY also send a `source-data-event` for the same source (§6.6).
+- A sending peer SHOULD emit at most one `new-care-relationship` event per newly relevant source per `subject-handle`. It MAY also send a `source-data-event` for the same source (§5.6).
 - A sending peer SHALL stop all notifications for a `subject-handle` when its authority count reaches zero.
 - A receiving peer SHALL maintain its own local authority registry. It SHALL NOT require the sender to repeat authority details in every notification.
 - If 100 clients at the receiving broker all care about the same patient, they share one `subject-handle`, and the peer link carries one event, not 100.
 
-### 6.8 Translation to client notifications
+### 5.8 Translation to client notifications
 
-When translating a peer `new-care-relationship-exists` event into a client `new-care-relationship` notification:
+When translating a peer `new-care-relationship` event into a client `new-care-relationship` notification, forward these fields if present:
 
-- Keep `source-id`, `network-id`, and `feed-endpoint` if present and useful.
-- Strip `subject-handle` and peer-side authority details.
+- `source-id`
+- `network-id`
+- `feed-endpoint`
+- `source-fhir-base`
+
+Peer-internal fields (`kind`, `subject-handle`) and any unrecognized fields are not forwarded to the client.
 
 For `source-data-event` translation, see [source-data-event.md](source-data-event.md).
 
@@ -493,7 +477,7 @@ The client sees the same notification shape regardless of whether the Home Broke
 
 ---
 
-## 7. Scope
+## 6. Scope
 
 ### In scope
 
@@ -502,7 +486,7 @@ The client sees the same notification shape regardless of whether the Home Broke
 - Source feed endpoint contract (`patient-data-feed`, read-back, catch-up)
 - Multiplexed peer subscription and `peer-network-events` topic
 - `$attach-authority` and `$detach-authority` operations
-- Peer `new-care-relationship-exists` notification shape (plus optional `source-data-event`; see [source-data-event.md](source-data-event.md))
+- Peer `new-care-relationship` notification shape (plus optional `source-data-event`; see [source-data-event.md](source-data-event.md))
 
 ### Out of scope
 
@@ -513,19 +497,15 @@ The client sees the same notification shape regardless of whether the Home Broke
 - How networks learn about events internally (ADT, polling, FHIR subscriptions from providers)
 - Payment, contracting, and business terms between networks
 
-### Note on discovery
-
-This spec does not define how discovery works, but it does require that discovery *exists*. Every network SHALL document how a client gets from a relationship notification to a `feed-endpoint`.
-
 ---
 
-## 8. Conformance Summary
+## 7. Conformance Summary
 
 **Home Broker:**
 
 - SHALL support the `new-care-relationship` topic
 - SHALL send notifications that are actionable through the network's documented discovery flow
-- MAY include `source-id`, `network-id`, `feed-endpoint`, and `source-fhir-base` in notifications; if included, these SHALL be accurate
+- SHOULD include `feed-endpoint` in notifications when known; SHOULD include `source-id` and `network-id` when `feed-endpoint` is not available; MAY include `source-fhir-base`; all included fields SHALL be accurate
 - SHALL document a path from relationship notification to `feed-endpoint`, either by including it in the notification or through a documented discovery mechanism
 
 **Source feed endpoint:**
