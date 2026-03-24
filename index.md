@@ -37,7 +37,7 @@ A client subscribes once at its home Broker to learn about new sources of care d
 3. The Home Broker ensures it has peer subscriptions with all relevant peer Brokers (§5.1), attaching an authority for this patient on each (§5.3). If peer subscriptions already exist, the Home Broker multiplexes onto them.
 4. A patient visits a provider. The provider's network detects the new care relationship internally (ADT, FHIR event, polling — mechanism is network-internal).
 5. If the provider is in the Home Network, the Home Broker learns about it directly. If the provider is in a peer network, the peer Broker signals the Home Broker via the `peer-network-events` subscription (§5.5).
-6. Home Broker sends the client a `new-care-relationship` notification. The notification may include the `feed-endpoint` and correlation fields (`source-id`, `network-id`).
+6. Home Broker sends the client a `new-care-relationship` notification. The notification may include the `feed-endpoint` and correlation fields (`source-organization`, `network-id`).
 7. If the notification included `feed-endpoint`, the client can proceed directly. Otherwise, the client uses the network's existing RLS or documented source lookup to discover the `feed-endpoint`.
 8. Client authorizes at the source feed endpoint. The token response includes a source-scoped `patient` context.
 9. Client creates a `patient-data-feed` subscription at the source feed endpoint, filtered to that patient.
@@ -164,10 +164,16 @@ When a new source becomes relevant for the patient, the Home Broker sends a noti
         "resourceType": "Parameters",
         "parameter": [
           {
-            "name": "source-id",
-            "valueIdentifier": {
-              "system": "https://cms.gov/fhir/sid/source-id",
-              "value": "urn:example:source:mercy-phoenix"
+            "name": "source-organization",
+            "resource": {
+              "resourceType": "Organization",
+              "identifier": [
+                {
+                  "system": "http://hl7.org/fhir/sid/us-npi",
+                  "value": "1234567890"
+                }
+              ],
+              "name": "Mercy Hospital Phoenix"
             }
           },
           {
@@ -194,19 +200,18 @@ All fields are optional. The broker includes what it has. A richer notification 
 
 | Field | Purpose |
 |-------|---------|
-| `source-id` | Stable source key. Correlates to the network's RLS output so the client can match this event to a discovered source. |
-| `network-id` | Stable network key. Used with `source-id` for cross-network correlation. |
+| `source-organization` | Minimal Organization resource identifying the source of care. The identifier(s) correlate to the network's RLS output. Most fields are optional; `identifier` is the key field. |
+| `network-id` | Stable network key. Used with `source-organization` for cross-network correlation. |
 | `feed-endpoint` | The FHIR base URL where the client subscribes for `patient-data-feed`. If included, the client can skip discovery and go straight to authorization + subscription. |
 | `source-fhir-base` | The provider's native FHIR API, if one exists. May support reads/search but is not required to support subscriptions. When absent, there is no separate provider API. When equal to `feed-endpoint`, the provider hosts its own feed. |
 
 **Rules:**
 
 - A Home Broker SHOULD include `feed-endpoint` when known, so the client can act without a separate discovery step.
-- When `feed-endpoint` is not available, the Home Broker SHOULD include `source-id` and `network-id` so the client can correlate the event to a discovered source.
+- When `feed-endpoint` is not available, the Home Broker SHOULD include `source-organization` and `network-id` so the client can correlate the event to a discovered source.
 - A notification with no fields beyond the subscription envelope is valid as an escape hatch — it means "discovery changed for this patient" — but SHOULD NOT be the default.
-- If `source-id` and `network-id` are included, they SHALL correlate correctly to the network's existing RLS output.
+- If `source-organization` is included, its identifiers SHALL correlate correctly to the network's existing RLS output. The Organization resource may be minimal (e.g., just `identifier` and `name`).
 - If `feed-endpoint` is included, it SHALL be a valid, subscribable source feed endpoint for the indicated source.
-- The notification is not a full RLS payload. It SHALL NOT require the network to inline complete `Organization` or `Endpoint` resources.
 
 ### 4.4 Discovery
 
@@ -215,7 +220,7 @@ If the notification does not include `feed-endpoint`, the client needs to discov
 The requirements are:
 
 - The network SHALL document a path from relationship notification to `feed-endpoint`.
-- If the notification includes `source-id` and `network-id`, the network's discovery mechanism SHALL use the same identifiers so the client can correlate.
+- If the notification includes `source-organization`, the network's discovery mechanism SHALL recognize the same identifiers so the client can correlate.
 
 ### 4.5 Source feed endpoint contract
 
@@ -415,10 +420,16 @@ When a source network detects a new care relationship for a watched subject, it 
           { "name": "kind", "valueCode": "new-care-relationship" },
           { "name": "subject-handle", "valueString": "patient-broker-a-123" },
           {
-            "name": "source-id",
-            "valueIdentifier": {
-              "system": "https://cms.gov/fhir/sid/source-id",
-              "value": "urn:example:source:mercy-phoenix"
+            "name": "source-organization",
+            "resource": {
+              "resourceType": "Organization",
+              "identifier": [
+                {
+                  "system": "http://hl7.org/fhir/sid/us-npi",
+                  "value": "1234567890"
+                }
+              ],
+              "name": "Mercy Hospital Phoenix"
             }
           },
           {
@@ -445,13 +456,13 @@ When a source network detects a new care relationship for a watched subject, it 
 |-------|-------------|---------|
 | `kind` | SHALL | Event type: `new-care-relationship` (§5.5) or `visit-event` (§5.6). |
 | `subject-handle` | SHALL | Caller-assigned patient handle from the attach request; the sending peer echoes it so the receiver can route notifications to the right local patient |
-| `source-id` | SHOULD | Stable source key, same as in client notifications (§4.3) |
+| `source-organization` | SHOULD | Minimal Organization resource identifying the source of care, same as in client notifications (§4.3) |
 | `network-id` | SHOULD | Stable network key, same as in client notifications (§4.3) |
 | `feed-endpoint` | SHOULD | FHIR base URL where the client can subscribe for `patient-data-feed` (Encounter and Appointment feeds via the US Core Patient Data Feed topic) |
 
 ### 5.6 Peer notification: visit-event
 
-A sending peer MAY send `visit-event` notifications to forward an Encounter or Appointment resource, the source Organization, and optionally the source's FHIR Endpoint(s). A `visit-event` may accompany a `new-care-relationship` (for the triggering encounter) or be sent independently for subsequent visits at sources with an already-established relationship. A `visit-event` does not replace `new-care-relationship` — new sources still require a relationship event. See [visit-event.md](visit-event.md) for the full message definition.
+A sending peer MAY send `visit-event` notifications to forward Encounter and/or Appointment resources, along with the source's FHIR Endpoint(s). A `visit-event` may accompany a `new-care-relationship` (for the triggering encounter) or be sent independently for subsequent visits at sources with an already-established relationship. A `visit-event` does not replace `new-care-relationship` — new sources still require a relationship event. See [visit-event.md](visit-event.md) for the full message definition.
 
 ### 5.7 Aggregation rules
 
@@ -467,7 +478,7 @@ A sending peer MAY send `visit-event` notifications to forward an Encounter or A
 
 When translating a peer `new-care-relationship` event into a client `new-care-relationship` notification, forward these fields if present:
 
-- `source-id`
+- `source-organization`
 - `network-id`
 - `feed-endpoint`
 - `source-fhir-base`
@@ -508,7 +519,7 @@ The client sees the same notification shape regardless of whether the Home Broke
 
 - SHALL support the `new-care-relationship` topic
 - SHALL send notifications that are actionable through the network's documented discovery flow
-- SHOULD include `feed-endpoint` in notifications when known; SHOULD include `source-id` and `network-id` when `feed-endpoint` is not available; MAY include `source-fhir-base`; all included fields SHALL be accurate
+- SHOULD include `feed-endpoint` in notifications when known; SHOULD include `source-organization` and `network-id` when `feed-endpoint` is not available; MAY include `source-fhir-base`; all included fields SHALL be accurate
 - SHALL document a path from relationship notification to `feed-endpoint`, either by including it in the notification or through a documented discovery mechanism
 
 **Source feed endpoint:**
@@ -527,4 +538,4 @@ The client sees the same notification shape regardless of whether the Home Broke
 - SHALL aggregate authorities by `subject-handle`
 - SHALL stop peer notifications when authority count reaches zero
 - SHALL use the `peer-network-events` notification shapes defined here
-- MAY support `visit-event` notifications; if supported, SHALL include valid `focus-resource` and `source-organization`
+- MAY support `visit-event` notifications; if supported, SHOULD include at least one of `encounter` or `appointment`

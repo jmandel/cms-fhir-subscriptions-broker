@@ -19,10 +19,16 @@ The notification uses the same `subscription-notification` bundle format as §5.
     { "name": "kind", "valueCode": "visit-event" },
     { "name": "subject-handle", "valueString": "patient-broker-a-123" },
     {
-      "name": "source-id",
-      "valueIdentifier": {
-        "system": "https://cms.gov/fhir/sid/source-id",
-        "value": "urn:example:source:mercy-phoenix"
+      "name": "source-organization",
+      "resource": {
+        "resourceType": "Organization",
+        "identifier": [
+          {
+            "system": "http://hl7.org/fhir/sid/us-npi",
+            "value": "1234567890"
+          }
+        ],
+        "name": "Mercy Hospital Phoenix"
       }
     },
     {
@@ -37,7 +43,7 @@ The notification uses the same `subscription-notification` bundle format as §5.
       "valueUrl": "https://broker.sw-care.example.org/fhir/sources/mercy-phoenix"
     },
     {
-      "name": "focus-resource",
+      "name": "encounter",
       "resource": {
         "resourceType": "Encounter",
         "id": "enc-789",
@@ -48,20 +54,6 @@ The notification uses the same `subscription-notification` bundle format as §5.
         },
         "subject": { "reference": "Patient/source-456" },
         "period": { "start": "2026-03-23T14:30:00Z" }
-      }
-    },
-    {
-      "name": "source-organization",
-      "resource": {
-        "resourceType": "Organization",
-        "identifier": [
-          {
-            "system": "http://hl7.org/fhir/sid/us-npi",
-            "value": "1234567890"
-          }
-        ],
-        "name": "Mercy Hospital Phoenix",
-        "address": [{ "state": "AZ", "city": "Phoenix" }]
       }
     },
     {
@@ -82,21 +74,23 @@ The notification uses the same `subscription-notification` bundle format as §5.
 
 ## Fields
 
-Shared peer fields (`kind`, `subject-handle`, `source-id`, `network-id`) follow the same rules as `new-care-relationship`.
+Shared peer fields (`kind`, `subject-handle`, `source-organization`, `network-id`) follow the same rules as `new-care-relationship`.
 
 | Field | Optionality | Purpose |
 |-------|-------------|---------|
+| `encounter` | MAY | An Encounter resource from this visit |
+| `appointment` | MAY | An Appointment resource from this visit |
 | `feed-endpoint` | SHOULD | FHIR base URL for the source's feed endpoint |
-| `focus-resource` | SHALL | The triggering Encounter or Appointment |
-| `source-organization` | SHALL | The clinical Organization that is the source of care |
 | `source-endpoint` | MAY | FHIR Endpoint resource(s) for the source organization; repeatable |
+
+At least one of `encounter` or `appointment` SHOULD be present. Both may be included in the same event.
 
 ## Rules
 
 - For a new source, a `new-care-relationship` event SHALL be sent; a `visit-event` MAY accompany it but does not replace it.
 - For an already-established source, a `visit-event` MAY be sent independently.
-- `focus-resource` SHALL be a valid Encounter or Appointment resource.
-- `source-organization` SHALL be a valid Organization resource representing the care source.
+- `encounter`, if present, SHALL be a valid Encounter resource.
+- `appointment`, if present, SHALL be a valid Appointment resource.
 - `source-endpoint`, if present, SHALL be a valid Endpoint resource associated with the source organization.
 - The receiving broker MAY use the forwarded resources to enrich client notifications, pre-populate caches, or skip discovery steps.
 
@@ -104,11 +98,11 @@ Shared peer fields (`kind`, `subject-handle`, `source-id`, `network-id`) follow 
 
 When translating a `visit-event` for client delivery, forward these fields if present:
 
-- `source-id`
+- `source-organization`
 - `network-id`
 - `feed-endpoint`
 - `source-fhir-base`
 
-Peer-internal fields (`kind`, `subject-handle`) and inline resources (`focus-resource`, `source-organization`, `source-endpoint`) are not forwarded to the client. The receiving broker MAY use the inline resources internally.
+Peer-internal fields (`kind`, `subject-handle`) and inline resources (`encounter`, `appointment`, `source-endpoint`) are not forwarded to the client. The receiving broker MAY use the inline resources internally.
 
 The client sees the same `new-care-relationship` notification shape regardless of whether the broker received a `visit-event` from the peer.

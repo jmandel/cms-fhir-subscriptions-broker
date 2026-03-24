@@ -273,7 +273,8 @@ export class Broker {
     const peerParams = body?.entry?.[1]?.resource;
     if (!peerParams) return { status: 200, body: {} };
 
-    const sourceId = peerParams?.parameter?.find((p: any) => p.name === "source-id")?.valueIdentifier?.value;
+    const sourceOrg = peerParams?.parameter?.find((p: any) => p.name === "source-organization")?.resource;
+    const sourceId = sourceOrg?.identifier?.[0]?.value;
     const networkId = peerParams?.parameter?.find((p: any) => p.name === "network-id")?.valueIdentifier?.value;
     const feedEndpoint = this.resolveFeedEndpoint(sourceId);
 
@@ -287,7 +288,7 @@ export class Broker {
     while (this.pendingPeerEvents.length > 0) {
       const evt = this.pendingPeerEvents.shift()!;
       const clientParams: any = { resourceType: "Parameters", parameter: [] };
-      if (evt.sourceId) clientParams.parameter.push({ name: "source-id", valueIdentifier: { system: "https://cms.gov/fhir/sid/source-id", value: evt.sourceId } });
+      if (evt.sourceId) clientParams.parameter.push({ name: "source-organization", resource: { resourceType: "Organization", identifier: [{ system: "http://hl7.org/fhir/sid/us-npi", value: evt.sourceId }] } });
       if (evt.networkId) clientParams.parameter.push({ name: "network-id", valueIdentifier: { system: "https://cms.gov/fhir/sid/network-id", value: evt.networkId } });
       if (evt.feedEndpoint) clientParams.parameter.push({ name: "feed-endpoint", valueUrl: evt.feedEndpoint });
 
@@ -318,7 +319,7 @@ export class Broker {
     const peerParams: any = { resourceType: "Parameters", parameter: [
       { name: "kind", valueCode: "new-care-relationship" },
       { name: "subject-handle", valueString: subjectHandle },
-      { name: "source-id", valueIdentifier: { system: "https://cms.gov/fhir/sid/source-id", value: sourceId } },
+      { name: "source-organization", resource: { resourceType: "Organization", identifier: [{ system: "http://hl7.org/fhir/sid/us-npi", value: sourceId }] } },
       { name: "network-id", valueIdentifier: { system: "https://cms.gov/fhir/sid/network-id", value: networkId } },
     ]};
 
