@@ -61,7 +61,7 @@ Response:
 
 | Field | Direction | Purpose |
 |-------|-----------|---------|
-| `subject-handle` | Request | Receiver-assigned patient handle. The sender echoes this in notifications. Multiple authorities for the same patient use the same handle. |
+| `subject-handle` | Request | Caller-assigned patient handle. The requesting broker creates this value and reuses it for all authorities for the same local patient on the same peer link. The response echoes it as confirmation. |
 | `subject` | Request | Patient demographics for cross-network matching |
 | `authority-identifier` | Request | Stable ID for this authority attachment |
 | `supporting-artifact` | Request | Optional typed artifact (e.g., permission ticket) |

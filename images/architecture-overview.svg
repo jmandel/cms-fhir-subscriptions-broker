@@ -111,7 +111,7 @@
 
   <circle cx="340" cy="300" r="6" fill="#334155"/>
   <text x="340" y="303" text-anchor="middle" font-size="8" font-weight="700" fill="white">3</text>
-  <text x="352" y="304" font-size="10" fill="#334155">Discover source via RLS, subscribe for data</text>
+  <text x="352" y="304" font-size="10" fill="#334155">Resolve feed-endpoint, subscribe for data</text>
 
   <!-- Plane legend -->
   <line x1="30" y1="320" x2="50" y2="320" stroke="#16a34a" stroke-width="2"/>

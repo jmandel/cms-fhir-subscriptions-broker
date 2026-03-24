@@ -1,12 +1,12 @@
-# Peer Notification: source-data-event
+# Peer Notification: visit-event
 
 **Parent spec:** [index.md](index.md) §5.6
 
 ## Overview
 
-A sending peer MAY send a `source-data-event` alongside a `new-care-relationship` event to forward the triggering clinical resource, the source Organization, and optionally the source's FHIR Endpoint(s). This lets the receiving broker act on richer data without a separate lookup.
+A sending peer MAY send a `visit-event` alongside a `new-care-relationship` event to forward the triggering clinical resource, the source Organization, and optionally the source's FHIR Endpoint(s). This lets the receiving broker act on richer data without a separate lookup.
 
-A `source-data-event` does not replace `new-care-relationship`. The relationship event SHALL always be sent; the data event is an optional supplement. This avoids requiring the receiving broker to infer relationship state from data events.
+A `visit-event` does not replace `new-care-relationship`. The relationship event SHALL always be sent; the data event is an optional supplement. This avoids requiring the receiving broker to infer relationship state from data events.
 
 ## Parameters payload
 
@@ -16,7 +16,7 @@ The notification is delivered in the same `subscription-notification` bundle as 
 {
   "resourceType": "Parameters",
   "parameter": [
-    { "name": "kind", "valueCode": "source-data-event" },
+    { "name": "kind", "valueCode": "visit-event" },
     { "name": "subject-handle", "valueString": "patient-broker-a-123" },
     {
       "name": "source-id",
@@ -93,7 +93,7 @@ Shared peer fields (`kind`, `subject-handle`, `source-id`, `network-id`) follow 
 
 ## Rules
 
-- A `source-data-event` SHALL NOT be sent without a corresponding `new-care-relationship` for the same source and `subject-handle`. The relationship event establishes the relationship; the data event supplements it.
+- A `visit-event` SHALL NOT be sent without a corresponding `new-care-relationship` for the same source and `subject-handle`. The relationship event establishes the relationship; the data event supplements it.
 - `focus-resource` SHALL be a valid Encounter or Appointment resource.
 - `source-organization` SHALL be a valid Organization resource representing the care source.
 - `source-endpoint`, if present, SHALL be a valid Endpoint resource associated with the source organization.
@@ -101,10 +101,13 @@ Shared peer fields (`kind`, `subject-handle`, `source-id`, `network-id`) follow 
 
 ## Translation to client notifications
 
-When translating a `source-data-event` for client delivery:
+When translating a `visit-event` for client delivery, forward these fields if present:
 
-- Strip `subject-handle` and peer-side authority details.
-- Strip inline resources (`focus-resource`, `source-organization`, `source-endpoint`). The receiving broker MAY use these internally but SHALL NOT require the client to process them.
-- Keep `source-id`, `network-id`, and `feed-endpoint` if present and useful.
+- `source-id`
+- `network-id`
+- `feed-endpoint`
+- `source-fhir-base`
 
-The client sees the same `new-care-relationship` notification shape regardless of whether the broker received a `source-data-event` from the peer.
+Peer-internal fields (`kind`, `subject-handle`) and inline resources (`focus-resource`, `source-organization`, `source-endpoint`) are not forwarded to the client. The receiving broker MAY use the inline resources internally.
+
+The client sees the same `new-care-relationship` notification shape regardless of whether the broker received a `visit-event` from the peer.

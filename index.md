@@ -18,7 +18,7 @@
 >
 > Valley Clinic hosts its own subscribable FHIR endpoint. Mercy Hospital Phoenix cannot, so the SW Care Broker hosts a `feed-endpoint` on its behalf. In both cases, the client does the same thing: authorize, subscribe, receive notifications.
 
-A client subscribes once at its home Broker to learn about new sources of care data. When notified, the client discovers the source through the network's existing RLS, selects source-specific `patient-data-feed` endpoints, and subscribes there for ongoing encounter and appointment data. Whether the source feed endpoint is provider-operated or broker-hosted, the client does the same thing. Peer Brokers signal each other about watched patients across network boundaries, multiplexing many local interests behind one peer subscription so cross-network signaling scales without per-client fan-out.
+A client subscribes once at its home Broker to learn about new sources of care data. When notified, the client uses the `feed-endpoint` if provided in the notification, or discovers it through the network's existing RLS, and subscribes there for ongoing encounter and appointment data. Whether the source feed endpoint is provider-operated or broker-hosted, the client does the same thing. Peer Brokers signal each other about watched patients across network boundaries, multiplexing many local interests behind one peer subscription so cross-network signaling scales without per-client fan-out.
 
 ### 1.1 Three planes
 
@@ -76,7 +76,7 @@ A client subscribes once at its home Broker to learn about new sources of care d
 | `patient-data-feed` | `patient` | Source-scoped patient id from token response | Required; applied per resource type (`Encounter?patient=`, `Appointment?patient=`) |
 | `peer-network-events` | — | — | No filters; multiplexed across all watched subjects |
 
-The `patient-data-feed` topic uses the US Core canonical URI. This spec constrains it to `Encounter` and `Appointment` for the network use case; see §4.5 for details on Appointment support.
+This spec defines a constrained use of the [US Core Patient Data Feed](https://www.hl7.org/fhir/us/core/patient-data-feed.html) topic. Endpoints SHALL support Encounter and MAY support Appointment; see §4.5.
 
 ---
 
@@ -223,13 +223,15 @@ Every source feed endpoint SHALL support:
 
 - Token-authenticated FHIR requests
 - `Subscription` create, read, and delete for the `patient-data-feed` topic
-- `id-only` notifications with absolute `Encounter` and `Appointment` URLs
-- `read` on `Encounter` and `Appointment`
-- Catch-up search over `Encounter` and `Appointment` for the patient (clients use their own lookback window)
+- `id-only` notifications with absolute resource URLs
+- `read` on supported resource types
+- Catch-up search for the patient (clients use their own lookback window)
+
+**Encounter** support is required. Every endpoint SHALL support Encounter subscription filters, `id-only` Encounter notifications, `read` on Encounter, and Encounter catch-up search.
+
+**Appointment** support is optional. An endpoint MAY also support Appointment with the same capabilities (subscription filters, `id-only` notifications, `read`, catch-up search). Endpoints SHALL document whether Appointment is supported. Consistent with US Core guidance, endpoints may adjust or reject unsupported subscription filters.
 
 This contract is intentionally narrow. It does not require broad FHIR API access beyond the feed and read-back needed here.
-
-**Note on Appointment:** Upcoming appointment details can be communicated using US Core Encounter resources with future dates, or using Appointment resources. Appointment is not yet profiled in US Core but is expected in the next revision of USCDI. This spec includes Appointment in the topic to support both approaches; implementations MAY initially support only Encounter if Appointment is not yet available.
 
 The authorization flow at this endpoint SHALL return a source-scoped patient context in the token response (§4.1). The client uses this for subscription filters and catch-up queries.
 
@@ -273,7 +275,7 @@ After resolving the source and authorizing at the source feed endpoint, the clie
 }
 ```
 
-`source-456` is the bare patient id from the token response at this endpoint (§4.1).
+`source-456` is the bare patient id from the token response at this endpoint (§4.1). This example shows an endpoint that supports both Encounter and Appointment. If the endpoint does not support Appointment, the client omits that filter (or the endpoint adjusts it per US Core guidance).
 
 ### 4.7 Source feed notification
 
@@ -441,21 +443,21 @@ When a source network detects a new care relationship for a watched subject, it 
 
 | Field | Optionality | Purpose |
 |-------|-------------|---------|
-| `kind` | SHALL | Event type: `new-care-relationship` (§5.5) or `source-data-event` (§5.6). |
+| `kind` | SHALL | Event type: `new-care-relationship` (§5.5) or `visit-event` (§5.6). |
 | `subject-handle` | SHALL | Caller-assigned patient handle from the attach request; the sending peer echoes it so the receiver can route notifications to the right local patient |
 | `source-id` | SHOULD | Stable source key, same as in client notifications (§4.3) |
 | `network-id` | SHOULD | Stable network key, same as in client notifications (§4.3) |
 | `feed-endpoint` | SHOULD | FHIR base URL where the client can subscribe for `patient-data-feed` (Encounter and Appointment feeds via the US Core Patient Data Feed topic) |
 
-### 5.6 Peer notification: source-data-event
+### 5.6 Peer notification: visit-event
 
-In addition to the required `new-care-relationship` event, a sending peer MAY also send a `source-data-event` to forward the triggering clinical resource (Encounter or Appointment), the source Organization, and optionally the source's FHIR Endpoint(s). A `source-data-event` does not replace `new-care-relationship` — the relationship event is always sent first or alongside it. See [source-data-event.md](source-data-event.md) for the full message definition.
+In addition to the required `new-care-relationship` event, a sending peer MAY also send a `visit-event` to forward the triggering clinical resource (Encounter or Appointment), the source Organization, and optionally the source's FHIR Endpoint(s). A `visit-event` does not replace `new-care-relationship` — the relationship event is always sent first or alongside it. See [visit-event.md](visit-event.md) for the full message definition.
 
 ### 5.7 Aggregation rules
 
 - A peer pair uses one multiplexed subscription.
 - Multiple authorities with the same `subject-handle` represent the same patient. The sender echoes the handle in notifications without needing to match demographics across attachments.
-- A sending peer SHOULD emit at most one `new-care-relationship` event per newly relevant source per `subject-handle`. It MAY also send a `source-data-event` for the same source (§5.6).
+- A sending peer SHOULD emit at most one `new-care-relationship` event per newly relevant source per `subject-handle`. It MAY also send a `visit-event` for the same source (§5.6).
 - A sending peer SHALL stop all notifications for a `subject-handle` when its authority count reaches zero.
 - A receiving peer SHALL maintain its own local authority registry. It SHALL NOT require the sender to repeat authority details in every notification.
 - If 100 clients at the receiving broker all care about the same patient, they share one `subject-handle`, and the peer link carries one event, not 100.
@@ -471,7 +473,7 @@ When translating a peer `new-care-relationship` event into a client `new-care-re
 
 Peer-internal fields (`kind`, `subject-handle`) and any unrecognized fields are not forwarded to the client.
 
-For `source-data-event` translation, see [source-data-event.md](source-data-event.md).
+For `visit-event` translation, see [visit-event.md](visit-event.md).
 
 The client sees the same notification shape regardless of whether the Home Broker learned about the source locally or from a peer.
 
@@ -486,7 +488,7 @@ The client sees the same notification shape regardless of whether the Home Broke
 - Source feed endpoint contract (`patient-data-feed`, read-back, catch-up)
 - Multiplexed peer subscription and `peer-network-events` topic
 - `$attach-authority` and `$detach-authority` operations
-- Peer `new-care-relationship` notification shape (plus optional `source-data-event`; see [source-data-event.md](source-data-event.md))
+- Peer `new-care-relationship` notification shape (plus optional `visit-event`; see [visit-event.md](visit-event.md))
 
 ### Out of scope
 
@@ -512,8 +514,8 @@ The client sees the same notification shape regardless of whether the Home Broke
 
 - SHALL support token-authenticated requests
 - SHALL support the `patient-data-feed` topic with `id-only` notifications
-- SHALL support `read` on `Encounter` and `Appointment`
-- SHALL support catch-up search for the patient
+- SHALL support Encounter (subscription filters, notifications, read, catch-up search)
+- MAY support Appointment with the same capabilities; SHALL document whether Appointment is supported
 - SHALL return a source-scoped patient context in the token response
 - When hosted by a Broker on behalf of a provider, SHALL be provider-specific and SHALL expose this same contract
 
@@ -524,4 +526,4 @@ The client sees the same notification shape regardless of whether the Home Broke
 - SHALL aggregate authorities by `subject-handle`
 - SHALL stop peer notifications when authority count reaches zero
 - SHALL use the `peer-network-events` notification shapes defined here
-- MAY support `source-data-event` notifications; if supported, SHALL include valid `focus-resource` and `source-organization`
+- MAY support `visit-event` notifications; if supported, SHALL include valid `focus-resource` and `source-organization`
