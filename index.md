@@ -293,7 +293,7 @@ Every source feed endpoint SHALL support:
 - `Subscription` create, read, and delete for the `patient-data-feed` topic
 - `id-only` notifications with absolute resource URLs
 - `read` on supported resource types
-- Catch-up search for the patient using standard FHIR search (clients use their own lookback window; specific search parameters are endpoint-documented)
+- Catch-up search: endpoints SHOULD support `patient` + `_lastUpdated` as search parameters on Encounter (and Appointment if supported), so clients can query for recent activity using their own lookback window
 
 **Encounter** support is required. Every endpoint SHALL support Encounter subscription filters, `id-only` Encounter notifications, `read` on Encounter, and Encounter catch-up search.
 
