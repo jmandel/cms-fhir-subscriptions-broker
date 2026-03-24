@@ -54,7 +54,7 @@ A client subscribes once at its home Broker to learn about new sources of care d
 
 **Source feed endpoint (`feed-endpoint`).** A FHIR base URL that supports the minimal data-plane contract defined in this spec (§4.5). May be provided directly in the relationship notification, or discovered via the network's out-of-band RLS. It may be hosted by the provider itself or by the provider's network Broker on the provider's behalf. The client does the same thing in both cases.
 
-**Subject handle.** (Peer model.) A receiver-assigned identifier for a patient on a peer link. The requesting broker supplies this handle when attaching authorities, and the sending peer echoes it in notifications. Multiple authorities for the same patient use the same handle. The requesting broker already knows its own patients — it assigns the handle, so the sending peer does not need to coalesce across attachments.
+**Subject handle.** (Peer model.) A caller-assigned identifier for a patient on a peer link. The broker that calls `$attach-authority` creates the handle and supplies it with each attachment. The sending peer echoes it in notifications so the receiver can route events to the right local patient without per-authority lookup. Multiple authorities for the same patient use the same handle.
 
 **Authority attachment.** (Peer model.) One local reason for keeping a subject active on a peer link. Each has a stable identifier.
 
@@ -346,14 +346,21 @@ Each peer pair uses one long-lived `Subscription` for the `peer-network-events` 
 {
   "resourceType": "Subscription",
   "status": "requested",
-  "topic": "https://cms.gov/fhir/SubscriptionTopic/peer-network-events",
-  "channelType": {
-    "system": "http://terminology.hl7.org/CodeSystem/subscription-channel-type",
-    "code": "rest-hook"
-  },
-  "endpoint": "https://broker.az-health.example.org/fhir/peer-notifications",
-  "contentType": "application/fhir+json",
-  "content": "full-resource"
+  "reason": "Peer network event notifications",
+  "criteria": "https://cms.gov/fhir/SubscriptionTopic/peer-network-events",
+  "channel": {
+    "type": "rest-hook",
+    "endpoint": "https://broker.az-health.example.org/fhir/peer-notifications",
+    "payload": "application/fhir+json",
+    "_payload": {
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-payload-content",
+          "valueCode": "full-resource"
+        }
+      ]
+    }
+  }
 }
 ```
 
@@ -439,6 +446,10 @@ When a source network detects a new care relationship for a watched subject, it 
               "value": "urn:example:network:sw-care"
             }
           },
+          {
+            "name": "feed-endpoint",
+            "valueUrl": "https://broker.sw-care.example.org/fhir/sources/mercy-phoenix"
+          }
         ]
       }
     }
@@ -446,12 +457,15 @@ When a source network detects a new care relationship for a watched subject, it 
 }
 ```
 
-**Peer-only fields:**
+**Peer notification fields:**
 
-| Field | Purpose |
-|-------|---------|
-| `kind` | Event type: `new-care-relationship-exists` (§6.5) or `source-data-event` (§6.6). |
-| `subject-handle` | Receiver-assigned patient handle, echoed from the attach request |
+| Field | Optionality | Purpose |
+|-------|-------------|---------|
+| `kind` | SHALL | Event type: `new-care-relationship-exists` (§6.5) or `source-data-event` (§6.6). |
+| `subject-handle` | SHALL | Caller-assigned patient handle from the attach request; the sending peer echoes it so the receiver can route notifications to the right local patient |
+| `source-id` | SHOULD | Stable source key, same as in client notifications (§4.3) |
+| `network-id` | SHOULD | Stable network key, same as in client notifications (§4.3) |
+| `feed-endpoint` | SHOULD | FHIR base URL where the client can subscribe for `patient-data-feed` (Encounter and Appointment feeds via the US Core Patient Data Feed topic) |
 
 ### 6.6 Peer notification: source-data-event
 
