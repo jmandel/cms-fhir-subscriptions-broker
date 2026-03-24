@@ -136,7 +136,7 @@ export class Broker {
   peerSubs: BrokerSub[] = [];
 
   // Pending peer events received but not yet forwarded to clients
-  pendingPeerEvents: Array<{ sourceId: string; networkId: string; feedEndpoint?: string }> = [];
+  pendingPeerEvents: Array<{ sourceId: string; feedEndpoint?: string }> = [];
   sourceFeedSubs: Map<string, BrokerSub[]> = new Map(); // keyed by source slug
 
   // Authorities (peer side)
@@ -221,7 +221,7 @@ export class Broker {
     // Attach authority
     if (method === "POST" && path.startsWith(prefix) && path.endsWith("$attach-authority")) {
       const handle = body?.parameter?.find((p: any) => p.name === "subject-handle")?.valueString;
-      const authIdParam = body?.parameter?.find((p: any) => p.name === "authority-identifier"); const authId = authIdParam?.valueString || authIdParam?.valueIdentifier?.value;
+      const authId = body?.parameter?.find((p: any) => p.name === "authority-id")?.valueString;
       const patientRes = body?.parameter?.find((p: any) => p.name === "subject")?.resource;
       const name = patientRes?.name?.[0];
       const patientName = name ? `${name.given?.[0]} ${name.family}` : "Unknown";
@@ -234,7 +234,7 @@ export class Broker {
 
     // Detach authority
     if (method === "POST" && path.startsWith(prefix) && path.endsWith("$detach-authority")) {
-      const authIdParam = body?.parameter?.find((p: any) => p.name === "authority-identifier"); const authId = authIdParam?.valueString || authIdParam?.valueIdentifier?.value;
+      const authId = body?.parameter?.find((p: any) => p.name === "authority-id")?.valueString;
       const idx = this.authorities.findIndex(a => a.authorityId === authId);
       let handle = "";
       if (idx >= 0) {
@@ -275,10 +275,9 @@ export class Broker {
 
     const sourceOrg = peerParams?.parameter?.find((p: any) => p.name === "source-organization")?.resource;
     const sourceId = sourceOrg?.identifier?.[0]?.value;
-    const networkId = peerParams?.parameter?.find((p: any) => p.name === "network-id")?.valueIdentifier?.value;
     const feedEndpoint = this.resolveFeedEndpoint(sourceId);
 
-    this.pendingPeerEvents.push({ sourceId, networkId, feedEndpoint });
+    this.pendingPeerEvents.push({ sourceId, feedEndpoint });
 
     return { status: 200, body: {} };
   }
@@ -288,9 +287,9 @@ export class Broker {
     while (this.pendingPeerEvents.length > 0) {
       const evt = this.pendingPeerEvents.shift()!;
       const clientParams: any = { resourceType: "Parameters", parameter: [] };
-      if (evt.sourceId) clientParams.parameter.push({ name: "source-organization", resource: { resourceType: "Organization", identifier: [{ system: "http://hl7.org/fhir/sid/us-npi", value: evt.sourceId }] } });
-      if (evt.networkId) clientParams.parameter.push({ name: "network-id", valueIdentifier: { system: "https://cms.gov/fhir/sid/network-id", value: evt.networkId } });
+      clientParams.parameter.push({ name: "client-action", valueCode: evt.feedEndpoint ? "subscribe" : "rediscover" });
       if (evt.feedEndpoint) clientParams.parameter.push({ name: "feed-endpoint", valueUrl: evt.feedEndpoint });
+      if (evt.sourceId) clientParams.parameter.push({ name: "source-organization", resource: { resourceType: "Organization", identifier: [{ system: "http://hl7.org/fhir/sid/us-npi", value: evt.sourceId }] } });
 
       for (const sub of this.clientSubs) {
         const bundle = notificationBundle(
@@ -315,12 +314,11 @@ export class Broker {
   }
 
   // Peer broker: notify home broker of a new care relationship
-  async sendPeerNotification(sourceId: string, networkId: string, subjectHandle: string) {
+  async sendPeerNotification(sourceId: string, subjectHandle: string) {
     const peerParams: any = { resourceType: "Parameters", parameter: [
       { name: "kind", valueCode: "new-care-relationship" },
       { name: "subject-handle", valueString: subjectHandle },
       { name: "source-organization", resource: { resourceType: "Organization", identifier: [{ system: "http://hl7.org/fhir/sid/us-npi", value: sourceId }] } },
-      { name: "network-id", valueIdentifier: { system: "https://cms.gov/fhir/sid/network-id", value: networkId } },
     ]};
 
     for (const sub of this.peerSubs) {

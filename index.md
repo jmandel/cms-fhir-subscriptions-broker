@@ -37,8 +37,8 @@ A client subscribes once at its home Broker to learn about new sources of care d
 3. The Home Broker ensures it has peer subscriptions with all relevant peer Brokers (§5.1), attaching an authority for this patient on each (§5.3). If peer subscriptions already exist, the Home Broker multiplexes onto them.
 4. A patient visits a provider. The provider's network detects the new care relationship internally (ADT, FHIR event, polling — mechanism is network-internal).
 5. If the provider is in the Home Network, the Home Broker learns about it directly. If the provider is in a peer network, the peer Broker signals the Home Broker via the `peer-network-events` subscription (§5.5).
-6. Home Broker sends the client a `new-care-relationship` notification. The notification may include the `feed-endpoint` and correlation fields (`source-organization`, `network-id`).
-7. If the notification included `feed-endpoint`, the client can proceed directly. Otherwise, the client uses the network's existing RLS or documented source lookup to discover the `feed-endpoint`.
+6. Home Broker sends the client a `new-care-relationship` notification with a `client-action` of `subscribe` (includes `feed-endpoint`) or `rediscover` (client must run the network's discovery flow). The notification may also include `source-organization`.
+7. The client follows `client-action`: if `subscribe`, proceed to authorization at the `feed-endpoint`; if `rediscover`, run the network's documented discovery flow, passing `discovery-hint` unchanged if present.
 8. Client authorizes at the source feed endpoint. The token response includes a source-scoped `patient` context.
 9. Client creates a `patient-data-feed` subscription at the source feed endpoint, filtered to that patient.
 10. Client performs a catch-up query using its own lookback window to pick up the triggering encounter and any other recent activity.
@@ -127,7 +127,14 @@ The subscription follows the [Subscriptions R5 Backport IG](http://hl7.org/fhir/
 
 ### 4.3 Relationship notification
 
-When a new source becomes relevant for the patient, the Home Broker sends a notification. The focus is a `Parameters` resource carrying whichever fields the broker has. This example shows a rich notification that includes `feed-endpoint`, allowing the client to skip discovery:
+When a new source becomes relevant for the patient, the Home Broker sends a notification. The focus is a `Parameters` resource that always includes `client-action`, telling the client what to do next.
+
+Every `new-care-relationship` notification SHALL include `client-action`. Defined values:
+
+- **`subscribe`** — `feed-endpoint` is present; the client authorizes and subscribes there.
+- **`rediscover`** — `feed-endpoint` is not present; the client runs the network's documented discovery flow.
+
+**Example: `subscribe`** — the broker knows the feed endpoint:
 
 ```json
 {
@@ -163,6 +170,11 @@ When a new source becomes relevant for the patient, the Home Broker sends a noti
       "resource": {
         "resourceType": "Parameters",
         "parameter": [
+          { "name": "client-action", "valueCode": "subscribe" },
+          {
+            "name": "feed-endpoint",
+            "valueUrl": "https://broker.sw-care.example.org/fhir/sources/mercy-phoenix"
+          },
           {
             "name": "source-organization",
             "resource": {
@@ -175,17 +187,6 @@ When a new source becomes relevant for the patient, the Home Broker sends a noti
               ],
               "name": "Mercy Hospital Phoenix"
             }
-          },
-          {
-            "name": "network-id",
-            "valueIdentifier": {
-              "system": "https://cms.gov/fhir/sid/network-id",
-              "value": "urn:example:network:sw-care"
-            }
-          },
-          {
-            "name": "feed-endpoint",
-            "valueUrl": "https://broker.sw-care.example.org/fhir/sources/mercy-phoenix"
           }
         ]
       }
@@ -194,33 +195,58 @@ When a new source becomes relevant for the patient, the Home Broker sends a noti
 }
 ```
 
+**Example: `rediscover`** — the broker directs the client to run discovery:
+
+```json
+{
+  "resourceType": "Parameters",
+  "parameter": [
+    { "name": "client-action", "valueCode": "rediscover" },
+    { "name": "discovery-hint", "valueString": "opaque-short-lived-token" },
+    {
+      "name": "source-organization",
+      "resource": {
+        "resourceType": "Organization",
+        "identifier": [
+          {
+            "system": "http://hl7.org/fhir/sid/us-npi",
+            "value": "1234567890"
+          }
+        ],
+        "name": "Mercy Hospital Phoenix"
+      }
+    }
+  ]
+}
+```
+
 **Notification fields:**
 
-All fields are optional. The broker includes what it has. A richer notification lets the client act without a separate discovery step; a thinner notification means "re-run discovery for this patient."
-
-| Field | Purpose |
-|-------|---------|
-| `source-organization` | Minimal Organization resource identifying the source of care. The identifier(s) correlate to the network's RLS output. Most fields are optional; `identifier` is the key field. |
-| `network-id` | Stable network key. Used with `source-organization` for cross-network correlation. |
-| `feed-endpoint` | The FHIR base URL where the client subscribes for `patient-data-feed`. If included, the client can skip discovery and go straight to authorization + subscription. |
-| `source-fhir-base` | The provider's native FHIR API, if one exists. May support reads/search but is not required to support subscriptions. When absent, there is no separate provider API. When equal to `feed-endpoint`, the provider hosts its own feed. |
+| Field | Type | Optionality | Purpose |
+|-------|------|-------------|---------|
+| `client-action` | `valueCode` | SHALL | `subscribe` or `rediscover`. Tells the client what to do next. |
+| `feed-endpoint` | `valueUrl` | SHALL if `subscribe` | FHIR base URL where the client subscribes for `patient-data-feed`. |
+| `discovery-hint` | `valueString` | MAY (only with `rediscover`) | Opaque value the client passes unchanged into the network's discovery flow. |
+| `source-organization` | `resource` (Organization) | MAY | Minimal Organization identifying the source of care. Useful when `feed-endpoint` is withheld, or when a broker-proxied URL obscures the true source. |
 
 **Rules:**
 
-- A Home Broker SHOULD include `feed-endpoint` when known, so the client can act without a separate discovery step.
-- When `feed-endpoint` is not available, the Home Broker SHOULD include `source-organization` and `network-id` so the client can correlate the event to a discovered source.
-- A notification with no fields beyond the subscription envelope is valid as an escape hatch — it means "discovery changed for this patient" — but SHOULD NOT be the default.
+- If `client-action` is `subscribe`, `feed-endpoint` SHALL be present and SHALL be a valid, subscribable source feed endpoint.
+- If `client-action` is `rediscover`, `feed-endpoint` SHALL NOT be present.
+- If `discovery-hint` is present, `client-action` SHALL be `rediscover`. The client SHALL pass `discovery-hint` unchanged into the network's documented discovery flow.
 - If `source-organization` is included, its identifiers SHALL correlate correctly to the network's existing RLS output. The Organization resource may be minimal (e.g., just `identifier` and `name`).
-- If `feed-endpoint` is included, it SHALL be a valid, subscribable source feed endpoint for the indicated source.
+- Unknown `client-action` values are not conformant.
 
 ### 4.4 Discovery
 
-If the notification does not include `feed-endpoint`, the client needs to discover it. This spec does not standardize the discovery mechanism — it is an out-of-band concern. The network's documented approach may be an existing RLS, a network-specific source directory, or another documented lookup.
+When `client-action` is `rediscover`, the client runs the network's documented discovery flow to obtain a `feed-endpoint`. This spec defines only the client-visible action; how a network performs discovery is out of scope.
 
 The requirements are:
 
-- The network SHALL document a path from relationship notification to `feed-endpoint`.
-- If the notification includes `source-organization`, the network's discovery mechanism SHALL recognize the same identifiers so the client can correlate.
+- The network SHALL document a discovery flow that yields a `feed-endpoint`.
+- If `discovery-hint` is present, the client SHALL pass it unchanged into the discovery flow.
+- If `source-organization` is included, the discovery flow SHALL recognize the same identifiers.
+- Discovery implementations may use full refresh, app-specific policy evaluation, hint-scoped lookup, or other methods.
 
 ### 4.5 Source feed endpoint contract
 
@@ -371,11 +397,11 @@ These operations may be managed out-of-band, but the implementation SHALL preser
 
 An authority attachment tells a peer: "watch for this patient." The requesting broker supplies a `subject-handle` that it has already resolved locally — the sending peer echoes this handle in notifications without needing to coalesce across attachments.
 
-The attach request carries the `subject-handle`, patient demographics for cross-network matching, a stable `authority-identifier`, and an optional `supporting-artifact` (e.g., a permission ticket). Multiple authorities with the same `subject-handle` are treated as the same patient — the sender does not need to match demographics across attachments to determine this. The response confirms the handle and returns an `authority-count`.
+The attach request carries the `subject-handle`, patient demographics for cross-network matching, a stable `authority-id`, and an optional `supporting-artifact` (e.g., a permission ticket). Multiple authorities with the same `subject-handle` are treated as the same patient — the sender does not need to match demographics across attachments to determine this. The response confirms the handle and returns an `authority-count`.
 
 ### 5.4 Detaching an authority
 
-Detach removes one authority by its `authority-identifier`. The response returns the updated `authority-count`. When the count reaches zero, the subject is no longer active and notifications stop. No separate watch-inspection API is required — each peer maintains its own local authority registry keyed by `subject-handle` and `authority-identifier`.
+Detach removes one authority by its `authority-id`. The response returns the updated `authority-count`. When the count reaches zero, the subject is no longer active and notifications stop. No separate watch-inspection API is required — each peer maintains its own local authority registry keyed by `subject-handle` and `authority-id`.
 
 See [authority-api.md](authority-api.md) for the full `$attach-authority` and `$detach-authority` request/response definitions, field tables, and rules.
 
@@ -433,13 +459,6 @@ When a source network detects a new care relationship for a watched subject, it 
             }
           },
           {
-            "name": "network-id",
-            "valueIdentifier": {
-              "system": "https://cms.gov/fhir/sid/network-id",
-              "value": "urn:example:network:sw-care"
-            }
-          },
-          {
             "name": "feed-endpoint",
             "valueUrl": "https://broker.sw-care.example.org/fhir/sources/mercy-phoenix"
           }
@@ -452,13 +471,12 @@ When a source network detects a new care relationship for a watched subject, it 
 
 **Peer notification fields:**
 
-| Field | Optionality | Purpose |
-|-------|-------------|---------|
-| `kind` | SHALL | Event type: `new-care-relationship` (§5.5) or `visit-event` (§5.6). |
-| `subject-handle` | SHALL | Caller-assigned patient handle from the attach request; the sending peer echoes it so the receiver can route notifications to the right local patient |
-| `source-organization` | SHOULD | Minimal Organization resource identifying the source of care, same as in client notifications (§4.3) |
-| `network-id` | SHOULD | Stable network key, same as in client notifications (§4.3) |
-| `feed-endpoint` | SHOULD | FHIR base URL where the client can subscribe for `patient-data-feed` (Encounter and Appointment feeds via the US Core Patient Data Feed topic) |
+| Field | Type | Optionality | Purpose |
+|-------|------|-------------|---------|
+| `kind` | `valueCode` | SHALL | Event type: `new-care-relationship` (§5.5) or `visit-event` (§5.6). |
+| `subject-handle` | `valueString` | SHALL | Caller-assigned patient handle from the attach request; the sending peer echoes it so the receiver can route notifications to the right local patient |
+| `source-organization` | `resource` (Organization) | SHOULD | Minimal Organization identifying the source of care, same as in client notifications (§4.3) |
+| `feed-endpoint` | `valueUrl` | SHOULD | FHIR base URL where the client can subscribe for `patient-data-feed` |
 
 ### 5.6 Peer notification: visit-event
 
@@ -476,14 +494,12 @@ A sending peer MAY send `visit-event` notifications to forward Encounter and/or 
 
 ### 5.8 Translation to client notifications
 
-When translating a peer `new-care-relationship` event into a client `new-care-relationship` notification, forward these fields if present:
+When translating a peer `new-care-relationship` event into a client `new-care-relationship` notification, the receiving broker:
 
-- `source-organization`
-- `network-id`
-- `feed-endpoint`
-- `source-fhir-base`
-
-Peer-internal fields (`kind`, `subject-handle`) and any unrecognized fields are not forwarded to the client.
+- Sets `client-action` to `subscribe` if it can resolve a `feed-endpoint`, or `rediscover` otherwise.
+- Forwards `source-organization` and `feed-endpoint` if present and useful.
+- MAY add `discovery-hint` when `client-action` is `rediscover`.
+- Strips `kind`, `subject-handle`, and any other peer-internal fields.
 
 For `visit-event` translation, see [visit-event.md](visit-event.md).
 
@@ -518,9 +534,10 @@ The client sees the same notification shape regardless of whether the Home Broke
 **Home Broker:**
 
 - SHALL support the `new-care-relationship` topic
-- SHALL send notifications that are actionable through the network's documented discovery flow
-- SHOULD include `feed-endpoint` in notifications when known; SHOULD include `source-organization` and `network-id` when `feed-endpoint` is not available; MAY include `source-fhir-base`; all included fields SHALL be accurate
-- SHALL document a path from relationship notification to `feed-endpoint`, either by including it in the notification or through a documented discovery mechanism
+- SHALL include `client-action` in every `new-care-relationship` notification
+- If `client-action` is `subscribe`, SHALL include a valid `feed-endpoint`
+- If `client-action` is `rediscover`, SHALL NOT include `feed-endpoint`; SHALL document a discovery flow that yields one
+- MAY include `source-organization`; if included, its identifiers SHALL be accurate
 
 **Source feed endpoint:**
 

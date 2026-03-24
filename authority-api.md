@@ -31,7 +31,7 @@
       }
     },
     {
-      "name": "authority-identifier",
+      "name": "authority-id",
       "valueString": "auth-123"
     },
     {
@@ -57,15 +57,21 @@ Response:
 }
 ```
 
-### Fields
+### Request fields
 
-| Field | Direction | Purpose |
-|-------|-----------|---------|
-| `subject-handle` | Request | Caller-assigned patient handle. The requesting broker creates this value and reuses it for all authorities for the same local patient on the same peer link. The response echoes it as confirmation. |
-| `subject` | Request | Patient demographics for cross-network matching |
-| `authority-identifier` | Request | Stable ID for this authority attachment |
-| `supporting-artifact` | Request | Optional typed artifact (e.g., permission ticket) |
-| `authority-count` | Response | How many authorities are behind this subject-handle |
+| Field | Type | Purpose |
+|-------|------|---------|
+| `subject-handle` | `valueString` | Caller-assigned patient handle. The requesting broker creates this and reuses it for all authorities for the same local patient on the same peer link. |
+| `subject` | `resource` (Patient) | Patient demographics for cross-network matching |
+| `authority-id` | `valueString` | Stable ID for this authority attachment. Unique within the requesting broker's registry for this peer link. `$detach-authority` references the same value. |
+| `supporting-artifact` | `part` | Optional typed artifact (e.g., permission ticket) |
+
+### Response fields
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `subject-handle` | `valueString` | Echoed from the request as confirmation |
+| `authority-count` | `valueInteger` | How many authorities are behind this subject-handle |
 
 ### Rules
 
@@ -82,7 +88,7 @@ Response:
   "resourceType": "Parameters",
   "parameter": [
     {
-      "name": "authority-identifier",
+      "name": "authority-id",
       "valueString": "auth-123"
     }
   ]
@@ -104,4 +110,4 @@ Response:
 ### Rules
 
 - When `authority-count` reaches zero, the subject is no longer active. Notifications stop.
-- No separate watch-inspection API is required. Each peer maintains its own local authority registry keyed by `subject-handle` and `authority-identifier`.
+- No separate watch-inspection API is required. Each peer maintains its own local authority registry keyed by `subject-handle` and `authority-id`.

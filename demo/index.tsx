@@ -169,7 +169,7 @@ function getSteps(): Step[] {
           resourceType: "Parameters", parameter: [
             { name: "subject-handle", valueString: "broker-123" },
             { name: "subject", resource: { resourceType: "Patient", name: [{ family: "Smith", given: ["Jane"] }], birthDate: "1980-02-01", gender: "female" } },
-            { name: "authority-identifier", valueString: "auth-jane" },
+            { name: "authority-id", valueString: "auth-jane" },
           ],
         }, "peer");
         refreshStates();
@@ -185,7 +185,7 @@ function getSteps(): Step[] {
           resourceType: "Parameters", parameter: [
             { name: "subject-handle", valueString: "broker-456" },
             { name: "subject", resource: { resourceType: "Patient", name: [{ family: "Johnson", given: ["Bob"] }], birthDate: "1975-11-15", gender: "male" } },
-            { name: "authority-identifier", valueString: "auth-bob" },
+            { name: "authority-id", valueString: "auth-bob" },
           ],
         }, "peer");
         refreshStates();
@@ -209,7 +209,7 @@ function getSteps(): Step[] {
       desc: "SW Care Network sends a new-care-relationship peer notification to AZ Health Network.",
       from: "SW Care Network", to: "AZ Health Network",
       run: async () => {
-        await net().peerBroker.sendPeerNotification("urn:example:source:mercy-phoenix", "urn:example:network:sw-care", "broker-123");
+        await net().peerBroker.sendPeerNotification("urn:example:source:mercy-phoenix", "broker-123");
         refreshStates();
       } },
 
@@ -287,7 +287,7 @@ function getSteps(): Step[] {
       desc: "SW Care Network sends a peer notification to AZ Health Network — same as the Mercy case.",
       from: "SW Care Network", to: "AZ Health Network",
       run: async () => {
-        await net().peerBroker.sendPeerNotification("urn:example:source:valley-clinic", "urn:example:network:sw-care", "broker-123");
+        await net().peerBroker.sendPeerNotification("urn:example:source:valley-clinic", "broker-123");
         refreshStates();
       } },
 
@@ -354,7 +354,7 @@ function getSteps(): Step[] {
       run: async () => {
         const subId = net().peerBroker.peerSubs[0]?.id;
         await net().send("AZ Health Network", "SW Care Network", "POST", `${URLS.swCare}/Subscription/${subId}/$detach-authority`, {
-          resourceType: "Parameters", parameter: [{ name: "authority-identifier", valueString: "auth-bob" }],
+          resourceType: "Parameters", parameter: [{ name: "authority-id", valueString: "auth-bob" }],
         }, "peer");
         refreshStates();
       } },
@@ -366,7 +366,7 @@ function getSteps(): Step[] {
       run: async () => {
         const subId = net().peerBroker.peerSubs[0]?.id;
         await net().send("AZ Health Network", "SW Care Network", "POST", `${URLS.swCare}/Subscription/${subId}/$detach-authority`, {
-          resourceType: "Parameters", parameter: [{ name: "authority-identifier", valueString: "auth-jane" }],
+          resourceType: "Parameters", parameter: [{ name: "authority-id", valueString: "auth-jane" }],
         }, "peer");
         refreshStates();
       } },

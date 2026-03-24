@@ -32,13 +32,6 @@ The notification uses the same `subscription-notification` bundle format as §5.
       }
     },
     {
-      "name": "network-id",
-      "valueIdentifier": {
-        "system": "https://cms.gov/fhir/sid/network-id",
-        "value": "urn:example:network:sw-care"
-      }
-    },
-    {
       "name": "feed-endpoint",
       "valueUrl": "https://broker.sw-care.example.org/fhir/sources/mercy-phoenix"
     },
@@ -74,14 +67,14 @@ The notification uses the same `subscription-notification` bundle format as §5.
 
 ## Fields
 
-Shared peer fields (`kind`, `subject-handle`, `source-organization`, `network-id`) follow the same rules as `new-care-relationship`.
+Shared peer fields (`kind`, `subject-handle`, `source-organization`) follow the same rules as `new-care-relationship`.
 
-| Field | Optionality | Purpose |
-|-------|-------------|---------|
-| `encounter` | MAY | An Encounter resource from this visit |
-| `appointment` | MAY | An Appointment resource from this visit |
-| `feed-endpoint` | SHOULD | FHIR base URL for the source's feed endpoint |
-| `source-endpoint` | MAY | FHIR Endpoint resource(s) for the source organization; repeatable |
+| Field | Type | Optionality | Purpose |
+|-------|------|-------------|---------|
+| `encounter` | `resource` (Encounter) | MAY | An Encounter resource from this visit |
+| `appointment` | `resource` (Appointment) | MAY | An Appointment resource from this visit |
+| `feed-endpoint` | `valueUrl` | SHOULD | FHIR base URL for the source's feed endpoint |
+| `source-endpoint` | `resource` (Endpoint) | MAY | FHIR Endpoint resource(s) for the source organization; repeatable |
 
 At least one of `encounter` or `appointment` SHOULD be present. Both may be included in the same event.
 
@@ -99,9 +92,9 @@ At least one of `encounter` or `appointment` SHOULD be present. Both may be incl
 When translating a `visit-event` for client delivery, forward these fields if present:
 
 - `source-organization`
-- `network-id`
 - `feed-endpoint`
-- `source-fhir-base`
+
+The receiving broker sets `client-action` based on whether it can resolve a `feed-endpoint`, and MAY enrich either a `subscribe` or `rediscover` notification with forwarded data.
 
 Peer-internal fields (`kind`, `subject-handle`) and inline resources (`encounter`, `appointment`, `source-endpoint`) are not forwarded to the client. The receiving broker MAY use the inline resources internally.
 

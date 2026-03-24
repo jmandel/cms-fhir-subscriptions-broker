@@ -71,7 +71,7 @@
   <text x="340" y="300" class="msg-label-gray" text-anchor="middle">Patient visits new provider</text>
 
   <!-- Broker notifies client -->
-  <text x="132" y="332" class="msg-label">new-care-relationship {feed-endpoint?, source-organization?, network-id?}</text>
+  <text x="132" y="332" class="msg-label">new-care-relationship {client-action, feed-endpoint?, source-organization?}</text>
   <line x1="340" y1="338" x2="120" y2="338" class="arrow-green"/>
 
   <!-- ============ PHASE 3: DISCOVERY  y=368 ============ -->

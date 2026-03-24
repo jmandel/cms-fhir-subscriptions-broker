@@ -97,7 +97,7 @@ describe("Peer Setup", () => {
       parameter: [
         { name: "subject-handle", valueString: "broker-123" },
         { name: "subject", resource: { resourceType: "Patient", name: [{ family: "Smith", given: ["Jane"] }] } },
-        { name: "authority-identifier", valueIdentifier: { value: "auth-jane" } },
+        { name: "authority-id", valueString: "auth-jane" },
       ],
     }, "peer");
 
@@ -118,14 +118,14 @@ describe("Peer Setup", () => {
       resourceType: "Parameters", parameter: [
         { name: "subject-handle", valueString: "broker-123" },
         { name: "subject", resource: { resourceType: "Patient", name: [{ family: "Smith", given: ["Jane"] }] } },
-        { name: "authority-identifier", valueIdentifier: { value: "auth-jane" } },
+        { name: "authority-id", valueString: "auth-jane" },
       ],
     }, "peer");
     await send("AZ Health Network", "SW Care Network", "POST", `http://test/sw-care/fhir/Subscription/${subId}/$attach-authority`, {
       resourceType: "Parameters", parameter: [
         { name: "subject-handle", valueString: "broker-456" },
         { name: "subject", resource: { resourceType: "Patient", name: [{ family: "Johnson", given: ["Bob"] }] } },
-        { name: "authority-identifier", valueIdentifier: { value: "auth-bob" } },
+        { name: "authority-id", valueString: "auth-bob" },
       ],
     }, "peer");
 
@@ -152,7 +152,7 @@ describe("Notification Chain", () => {
     }, "peer");
 
     // Peer broker sends notification (stored on home broker, not forwarded yet)
-    await peerBroker.sendPeerNotification("urn:example:source:mercy-phoenix", "urn:example:network:sw-care", "broker-123");
+    await peerBroker.sendPeerNotification("urn:example:source:mercy-phoenix", "broker-123");
     expect(client.notifications).toHaveLength(0); // not yet forwarded
     expect(homeBroker.pendingPeerEvents).toHaveLength(1);
 
@@ -248,14 +248,14 @@ describe("Authority Lifecycle", () => {
       resourceType: "Parameters", parameter: [
         { name: "subject-handle", valueString: "h-1" },
         { name: "subject", resource: { resourceType: "Patient", name: [{ family: "Smith", given: ["Jane"] }] } },
-        { name: "authority-identifier", valueIdentifier: { value: "a-1" } },
+        { name: "authority-id", valueString: "a-1" },
       ],
     }, "peer");
     await send("AZ Health Network", "SW Care Network", "POST", `http://test/sw-care/fhir/Subscription/${subId}/$attach-authority`, {
       resourceType: "Parameters", parameter: [
         { name: "subject-handle", valueString: "h-2" },
         { name: "subject", resource: { resourceType: "Patient", name: [{ family: "Johnson", given: ["Bob"] }] } },
-        { name: "authority-identifier", valueIdentifier: { value: "a-2" } },
+        { name: "authority-id", valueString: "a-2" },
       ],
     }, "peer");
     expect(peerBroker.authorities).toHaveLength(2);
@@ -263,7 +263,7 @@ describe("Authority Lifecycle", () => {
     // Detach Bob
     const resp = await send("AZ Health Network", "SW Care Network", "POST", `http://test/sw-care/fhir/Subscription/${subId}/$detach-authority`, {
       resourceType: "Parameters", parameter: [
-        { name: "authority-identifier", valueIdentifier: { value: "a-2" } },
+        { name: "authority-id", valueString: "a-2" },
       ],
     }, "peer");
     expect(resp.parameter[1].valueInteger).toBe(0); // Bob's handle count → 0
@@ -273,7 +273,7 @@ describe("Authority Lifecycle", () => {
     // Detach Jane
     await send("AZ Health Network", "SW Care Network", "POST", `http://test/sw-care/fhir/Subscription/${subId}/$detach-authority`, {
       resourceType: "Parameters", parameter: [
-        { name: "authority-identifier", valueIdentifier: { value: "a-1" } },
+        { name: "authority-id", valueString: "a-1" },
       ],
     }, "peer");
     expect(peerBroker.authorities).toHaveLength(0);
@@ -302,12 +302,12 @@ describe("End-to-End Scenario", () => {
       resourceType: "Parameters", parameter: [
         { name: "subject-handle", valueString: "broker-123" },
         { name: "subject", resource: { resourceType: "Patient", name: [{ family: "Smith", given: ["Jane"] }] } },
-        { name: "authority-identifier", valueIdentifier: { value: "auth-jane" } },
+        { name: "authority-id", valueString: "auth-jane" },
       ],
     }, "peer");
 
     // 3. Mercy encounter → peer notify → forward → client notified
-    await peerBroker.sendPeerNotification("urn:example:source:mercy-phoenix", "urn:example:network:sw-care", "broker-123");
+    await peerBroker.sendPeerNotification("urn:example:source:mercy-phoenix", "broker-123");
     await homeBroker.forwardPeerEventsToClients();
     expect(client.notifications).toHaveLength(1);
 
@@ -325,7 +325,7 @@ describe("End-to-End Scenario", () => {
     expect(client.notifications[1].kind).toBe("patient-data-feed");
 
     // 6. Valley visit → peer notify → forward → client
-    await peerBroker.sendPeerNotification("urn:example:source:valley-clinic", "urn:example:network:sw-care", "broker-123");
+    await peerBroker.sendPeerNotification("urn:example:source:valley-clinic", "broker-123");
     await homeBroker.forwardPeerEventsToClients();
     expect(client.notifications).toHaveLength(3);
 
@@ -344,7 +344,7 @@ describe("End-to-End Scenario", () => {
     // 9. Wind down
     await send("AZ Health Network", "SW Care Network", "POST", `http://test/sw-care/fhir/Subscription/${subId}/$detach-authority`, {
       resourceType: "Parameters", parameter: [
-        { name: "authority-identifier", valueIdentifier: { value: "auth-jane" } },
+        { name: "authority-id", valueString: "auth-jane" },
       ],
     }, "peer");
     expect(peerBroker.authorities).toHaveLength(0);

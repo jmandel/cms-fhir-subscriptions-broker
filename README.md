@@ -1,14 +1,12 @@
-# CMS Aligned Networks: FHIR Subscriptions Broker Architecture
+# CMS Aligned Networks: Split Control + Data Plane Subscriptions
 
 **CMS Interoperability Framework — Subscriptions Workgroup** | *Draft for Discussion*
 
-A brokered model for delivering FHIR encounter notifications across CMS-Aligned Networks, meeting the July 4, 2026 CMS Interoperability Framework requirement. Apps connect once to a Broker and receive notifications from any provider in the network — without integrating with each site individually.
-
-**[🔗 Live Demo](https://joshuamandel.com/cms-fhir-subscriptions-broker/)** — Try the interactive demonstration
+A client subscribes once at a Home Broker to learn about new sources of care data (control plane), then subscribes directly at each source feed endpoint for ongoing encounter and appointment notifications (data plane). Peer Brokers signal each other across network boundaries so cross-network discovery scales without per-client fan-out.
 
 ## Documents
 
-- **[Specification](index.md)** — Architecture, protocol flows, and authorization model
-- **[End-to-End Example](e2e-ias-example.md)** — Complete IAS app walkthrough with every step labeled as Specified, Network-Internal, or Prerequisite
-- **[FAQ](faq.md)** — Trust, privacy, patient matching, consent, and relationship to TEFCA
-- **[Cross-Network Peering](peering.md)** *(Experimental)* — How Brokers in different networks might exchange subscription intent and route notifications
+- **[Specification](index.md)** — Main spec: topics, client model, peer model, conformance
+- **[Authority API](authority-api.md)** — `$attach-authority` and `$detach-authority` wire formats
+- **[Visit Event](visit-event.md)** — Optional `visit-event` peer notification for forwarding Encounter/Appointment resources
+- **[Demo](demo/)** — Interactive single-page demo (`bun run demo/server.ts`)
