@@ -276,7 +276,7 @@ Every `new-care-relationship` notification SHALL include `client-action`. Define
 
 ### 4.4 Discovery
 
-When `client-action` is `rediscover`, the client runs the network's documented discovery flow to obtain a `feed-endpoint`. This spec defines only the client-visible action; how a network performs discovery is out of scope.
+When `client-action` is `rediscover`, the client runs the network's documented discovery flow to obtain a `feed-endpoint`. Discovery is intentionally network-specific; a network's flow may wrap existing XCPD, RLS, or other directory APIs. This spec defines only the client-visible action.
 
 The requirements are:
 
